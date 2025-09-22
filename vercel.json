@@ -13,5 +13,15 @@
     "src/app/api/**/*": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/jobs/scan",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/jobs/queue/cleanup",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
