@@ -16,12 +16,16 @@
   },
   "crons": [
     {
-      "path": "/api/jobs/scan",
+      "path": "/api/cron/job-scan",
       "schedule": "0 */4 * * *"
     },
     {
-      "path": "/api/jobs/queue/cleanup",
+      "path": "/api/cron/cleanup", 
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/daily-summary",
+      "schedule": "0 9 * * *"
     }
   ]
 }
