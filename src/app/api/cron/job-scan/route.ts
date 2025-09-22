@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('🕐 Checking users for automated job scanning...')
+    console.log('🕐 Daily job scan check - Running for all users with auto-scan enabled...')
     
-    // Get all users with auto-scan enabled
+    // Get all users with auto-scan enabled  
     const usersWithAutoScan = await prisma.profile.findMany({
       where: {
         autoApplySettings: {
@@ -32,27 +32,23 @@ export async function GET(request: NextRequest) {
     let scansQueued = 0
     const currentTime = new Date()
 
+    // Since we run daily, scan all users with auto-scan enabled
+    // Users control frequency via their settings
     for (const profile of usersWithAutoScan) {
       const settings = profile.autoApplySettings!
-      const scanFrequencyMs = settings.scanFrequencyHours * 60 * 60 * 1000
       
-      // Check if enough time has passed since last scan
-      const shouldScan = !settings.updatedAt || 
-        (currentTime.getTime() - settings.updatedAt.getTime()) >= scanFrequencyMs
+      // Queue job scan for this user (let the job handler check frequency)
+      await jobQueue.add(JobType.USER_JOB_SCAN, {
+        userId: profile.userId,
+        profileId: profile.id,
+        timestamp: currentTime.toISOString(),
+        source: 'daily_auto_scan',
+        userScanFrequency: settings.scanFrequencyHours,
+        runDailyCheck: true
+      })
 
-      if (shouldScan) {
-        // Queue job scan for this specific user
-        await jobQueue.add(JobType.USER_JOB_SCAN, {
-          userId: profile.userId,
-          profileId: profile.id,
-          timestamp: currentTime.toISOString(),
-          source: 'auto_scan',
-          scanFrequency: settings.scanFrequencyHours
-        })
-
-        scansQueued++
-        console.log(`✅ Queued job scan for user ${profile.user.email} (every ${settings.scanFrequencyHours}h)`)
-      }
+      scansQueued++
+      console.log(`✅ Queued daily scan check for user ${profile.user.email} (user frequency: ${settings.scanFrequencyHours}h)`)
     }
 
     console.log(`✅ ${scansQueued} job scans queued successfully`)
