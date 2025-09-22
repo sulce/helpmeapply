@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       const settings = profile.autoApplySettings!
       
       // Queue job scan for this user (let the job handler check frequency)
-      await jobQueue.add(JobType.USER_JOB_SCAN, {
+      await jobQueue.addJob(JobType.USER_JOB_SCAN, {
         userId: profile.userId,
         profileId: profile.id,
         timestamp: currentTime.toISOString(),

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     ]
 
     for (const jobType of cleanupJobs) {
-      await jobQueue.add(jobType, {
+      await jobQueue.addJob(jobType, {
         timestamp: new Date().toISOString(),
         source: 'cron'
       })

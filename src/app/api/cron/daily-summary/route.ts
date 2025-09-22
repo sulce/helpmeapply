@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     console.log('📊 Starting daily summary generation...')
     
     // Add daily summary job to queue
-    await jobQueue.add(JobType.SEND_DAILY_SUMMARY, {
+    await jobQueue.addJob(JobType.SEND_DAILY_SUMMARY, {
       timestamp: new Date().toISOString(),
       source: 'cron',
       date: new Date().toISOString().split('T')[0]
