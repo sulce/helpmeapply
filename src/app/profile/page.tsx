@@ -36,14 +36,37 @@ export default function ProfilePage() {
     }
   }, [session])
 
+  // Refresh profile data when window regains focus (e.g., returning from Resume Builder)
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (session?.user?.id) {
+        fetchProfile()
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    return () => window.removeEventListener('focus', handleWindowFocus)
+  }, [session?.user?.id])
+
   const fetchProfile = async () => {
     try {
-      const response = await fetch('/api/profile')
-      if (response.ok) {
-        const data = await response.json()
+      const [profileResponse, structuredResumeResponse] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/resume/structured').catch(() => null) // Don't fail if no structured resume
+      ])
+      
+      if (profileResponse.ok) {
+        const data = await profileResponse.json()
         // Parse profile data consistently
         const parsedProfile = parseProfileData(data.profile)
+        
         if (parsedProfile) {
+          // Check for structured resume data to ensure consistent completion calculation
+          if (structuredResumeResponse?.ok) {
+            const structuredData = await structuredResumeResponse.json()
+            parsedProfile.structuredResume = structuredData.resumeData
+          }
+          
           setProfileData(parsedProfile)
         } else {
           // No profile exists yet - pre-populate with user session data
@@ -219,7 +242,11 @@ export default function ProfilePage() {
         <div className="max-w-4xl space-y-4">
           {/* Profile Completion Card */}
           {profileData && (
-            <ProfileCompletionCard profile={profileData} compact={true} />
+            <ProfileCompletionCard 
+              profile={profileData} 
+              compact={true} 
+              onRefresh={fetchProfile}
+            />
           )}
 
           {/* Profile Import Card */}

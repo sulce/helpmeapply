@@ -148,6 +148,18 @@ export default function DashboardPage() {
     }
   }, [status, router, fetchProfile, fetchApplications, fetchAutoApplySettings, fetchJobStats])
 
+  // Refresh profile data when window regains focus (e.g., returning from Resume Builder)
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (status === 'authenticated') {
+        fetchProfile()
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    return () => window.removeEventListener('focus', handleWindowFocus)
+  }, [status, fetchProfile])
+
   // Refresh profile data after onboarding
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false)
@@ -206,7 +218,11 @@ export default function DashboardPage() {
 
           {/* Profile Completion Section */}
           <div className="mb-6">
-            <ProfileCompletionCard profile={profile} compact={true} />
+            <ProfileCompletionCard 
+              profile={profile} 
+              compact={true} 
+              onRefresh={fetchProfile}
+            />
           </div>
 
           {/* Tabbed Dashboard */}

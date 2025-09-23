@@ -9,9 +9,10 @@ interface ProfileCompletionCardProps {
   profile: any
   compact?: boolean
   className?: string
+  onRefresh?: () => void
 }
 
-export function ProfileCompletionCard({ profile, compact = false, className = '' }: ProfileCompletionCardProps) {
+export function ProfileCompletionCard({ profile, compact = false, className = '', onRefresh }: ProfileCompletionCardProps) {
   const router = useRouter()
   const completion = calculateProfileCompletion(profile)
 
