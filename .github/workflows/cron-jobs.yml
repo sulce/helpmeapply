@@ -1,5 +1,10 @@
 name: Background Jobs
 
+# This workflow triggers background jobs for the HelpMeApply application
+# Required GitHub Secrets:
+#   - VERCEL_URL: Your deployed Vercel app URL (e.g., https://helpmeapply.vercel.app)
+#   - CRON_SECRET: Secret token for authenticating cron requests (must match CRON_SECRET in Vercel env vars)
+
 on:
   schedule:
     # Job scanning every 4 hours
@@ -38,12 +43,51 @@ jobs:
     needs: determine-job-type
     if: needs.determine-job-type.outputs.job-type == 'job-scan'
     steps:
+      - name: Debug environment
+        run: |
+          echo "Checking environment variables..."
+          echo "VERCEL_URL is set: ${{ secrets.VERCEL_URL != '' }}"
+          echo "CRON_SECRET is set: ${{ secrets.CRON_SECRET != '' }}"
+          
       - name: Trigger job scanning
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          VERCEL_URL="${{ secrets.VERCEL_URL }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          
+          if [ -z "$VERCEL_URL" ]; then
+            echo "❌ Error: VERCEL_URL secret is not set or empty"
+            echo "Please set VERCEL_URL in GitHub repository secrets to your deployed Vercel app URL"
+            echo "Example: https://helpmeapply.vercel.app"
+            exit 1
+          fi
+          
+          if [ -z "$CRON_SECRET" ]; then
+            echo "❌ Error: CRON_SECRET is not set"
+            echo "Please set CRON_SECRET in GitHub repository secrets"
+            exit 1
+          fi
+          
+          echo "🚀 Triggering job scan at: $VERCEL_URL/api/cron/job-scan"
+          
+          response=$(curl -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            "${{ secrets.VERCEL_URL }}/api/cron/job-scan"
+            "$VERCEL_URL/api/cron/job-scan" \
+            -w "HTTPSTATUS:%{http_code}" \
+            -s)
+            
+          http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          body=$(echo $response | sed -e 's/HTTPSTATUS:.*//g')
+          
+          echo "📊 Response status: $http_code"
+          echo "📄 Response body: $body"
+          
+          if [ $http_code -eq 200 ]; then
+            echo "✅ Job scan triggered successfully"
+          else
+            echo "❌ Job scan failed with status: $http_code"
+            exit 1
+          fi
 
   cleanup:
     runs-on: ubuntu-latest  
@@ -52,10 +96,40 @@ jobs:
     steps:
       - name: Trigger cleanup tasks
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          VERCEL_URL="${{ secrets.VERCEL_URL }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          
+          if [ -z "$VERCEL_URL" ]; then
+            echo "❌ Error: VERCEL_URL secret is not set or empty"
+            exit 1
+          fi
+          
+          if [ -z "$CRON_SECRET" ]; then
+            echo "❌ Error: CRON_SECRET is not set"
+            exit 1
+          fi
+          
+          echo "🧹 Triggering cleanup at: $VERCEL_URL/api/cron/cleanup"
+          
+          response=$(curl -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            "${{ secrets.VERCEL_URL }}/api/cron/cleanup"
+            "$VERCEL_URL/api/cron/cleanup" \
+            -w "HTTPSTATUS:%{http_code}" \
+            -s)
+            
+          http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          body=$(echo $response | sed -e 's/HTTPSTATUS:.*//g')
+          
+          echo "📊 Response status: $http_code"
+          echo "📄 Response body: $body"
+          
+          if [ $http_code -eq 200 ]; then
+            echo "✅ Cleanup triggered successfully"
+          else
+            echo "❌ Cleanup failed with status: $http_code"
+            exit 1
+          fi
 
   daily-summary:
     runs-on: ubuntu-latest
@@ -64,7 +138,37 @@ jobs:
     steps:
       - name: Trigger daily summary
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          VERCEL_URL="${{ secrets.VERCEL_URL }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          
+          if [ -z "$VERCEL_URL" ]; then
+            echo "❌ Error: VERCEL_URL secret is not set or empty"
+            exit 1
+          fi
+          
+          if [ -z "$CRON_SECRET" ]; then
+            echo "❌ Error: CRON_SECRET is not set"
+            exit 1
+          fi
+          
+          echo "📊 Triggering daily summary at: $VERCEL_URL/api/cron/daily-summary"
+          
+          response=$(curl -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            "${{ secrets.VERCEL_URL }}/api/cron/daily-summary"
+            "$VERCEL_URL/api/cron/daily-summary" \
+            -w "HTTPSTATUS:%{http_code}" \
+            -s)
+            
+          http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          body=$(echo $response | sed -e 's/HTTPSTATUS:.*//g')
+          
+          echo "📊 Response status: $http_code"
+          echo "📄 Response body: $body"
+          
+          if [ $http_code -eq 200 ]; then
+            echo "✅ Daily summary triggered successfully"
+          else
+            echo "❌ Daily summary failed with status: $http_code"
+            exit 1
+          fi
