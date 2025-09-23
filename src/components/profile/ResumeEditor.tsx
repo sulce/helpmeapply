@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
@@ -19,7 +20,8 @@ import {
   Settings,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react'
 import { ALL_TEMPLATES, type TemplateRegion, getTemplateByRegion } from '@/lib/regionalTemplates'
 
@@ -89,6 +91,7 @@ interface ResumeEditorProps {
 }
 
 export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps) {
+  const router = useRouter()
   const [resumeData, setResumeData] = useState<ResumeData>({
     contactInfo: {
       fullName: '',
@@ -322,9 +325,18 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
   ]
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Resume Builder</h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm">Back to Dashboard</span>
+          </button>
+          <h1 className="text-3xl font-bold">Resume Builder</h1>
+        </div>
           <div className="flex gap-3 items-center">
           {/* Auto-save status indicator */}
           <div className="flex items-center text-sm text-gray-600">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { ResumeEditor } from '@/components/profile/ResumeEditor'
+import { Sidebar } from '@/components/ui/Sidebar'
 
 import { type TemplateRegion } from '@/lib/regionalTemplates'
 
@@ -265,12 +266,14 @@ export default function ResumeBuilderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ResumeEditor 
-        userId={session.user.id}
-        onSave={handleSave}
-        initialData={initialData}
-      />
-    </div>
+    <Sidebar>
+      <div className="p-3 lg:p-4">
+        <ResumeEditor 
+          userId={session.user.id}
+          onSave={handleSave}
+          initialData={initialData}
+        />
+      </div>
+    </Sidebar>
   )
 }
