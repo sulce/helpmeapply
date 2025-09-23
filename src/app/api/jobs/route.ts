@@ -14,7 +14,15 @@ const jobsQuerySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    // Jobs are global, so no authentication required for viewing
+    // SECURITY FIX: Jobs should be filtered by user, not global
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
     const { searchParams } = new URL(req.url)
     const queryParams = {
@@ -27,8 +35,10 @@ export async function GET(req: NextRequest) {
 
     const validatedParams = jobsQuerySchema.parse(queryParams)
 
-    // Build where clause
-    const where: any = {}
+    // Build where clause - IMPORTANT: Filter by userId
+    const where: any = {
+      userId: session.user.id  // SECURITY FIX: Only show jobs for current user
+    }
     if (validatedParams.source) {
       where.source = validatedParams.source
     }

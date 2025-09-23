@@ -118,7 +118,7 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
 
   // Auto-save functionality
   const { saveStatus, saveNow, loadFromLocalStorage } = useAutoSave(resumeData, {
-    delay: 3000, // Save 3 seconds after user stops typing
+    delay: 30000, // Save 30 seconds after user stops typing (allows proper form filling)
     localStorageKey: `resume-draft-${userId}`,
     onSave: async (data) => {
       if (onSave) {

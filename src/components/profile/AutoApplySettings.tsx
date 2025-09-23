@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/Switch'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Card } from '@/components/ui/Card'
+import { cn } from '@/lib/utils'
 import { Bot, Settings, AlertTriangle, Clock, Target, Bell, CheckCircle, Edit3 } from 'lucide-react'
 
 const autoApplySchema = z.object({
@@ -214,27 +215,52 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Main Toggle */}
-        <Card className="p-6">
+        <Card className={cn(
+          "p-6 border-2 transition-all duration-200", 
+          isEnabled 
+            ? "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg" 
+            : "border-gray-200 bg-white hover:border-blue-100 hover:shadow-md"
+        )}>
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Enable Auto-Apply
+            <div className="flex-1">
+              <h2 className={cn(
+                "text-xl font-semibold flex items-center transition-colors",
+                isEnabled ? "text-blue-800" : "text-gray-800"
+              )}>
+                <Bot className={cn(
+                  "h-6 w-6 mr-3 transition-colors",
+                  isEnabled ? "text-blue-600" : "text-gray-400"
+                )} />
+                Enable AI Auto-Apply
               </h2>
-              <p className="text-gray-600 mt-1">
-                Allow AI to automatically apply to jobs that meet your criteria
+              <p className={cn(
+                "mt-2 transition-colors",
+                isEnabled ? "text-blue-700" : "text-gray-600"
+              )}>
+                {isEnabled 
+                  ? "🚀 AI Assistant is actively searching and applying to jobs for you!"
+                  : "Let AI automatically apply to jobs that match your criteria"
+                }
               </p>
+              {isEnabled && (
+                <div className="mt-3 flex items-center text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                  <span className="text-green-700 font-medium">Active & Monitoring</span>
+                </div>
+              )}
             </div>
-            <Switch
-              checked={isEnabled}
-              size="lg"
-              onChange={async (e) => {
-                const value = e.target.checked
-                setValue('isEnabled', value, { shouldDirty: true })
-                await updateSingleField('isEnabled', value)
-              }}
-              disabled={isUpdating}
-            />
+            <div className="ml-6">
+              <Switch
+                checked={isEnabled}
+                size="lg"
+                onChange={async (e) => {
+                  const value = e.target.checked
+                  setValue('isEnabled', value, { shouldDirty: true })
+                  await updateSingleField('isEnabled', value)
+                }}
+                disabled={isUpdating}
+              />
+            </div>
           </div>
         </Card>
 

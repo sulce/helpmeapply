@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { profileSchema, skillSchema, type ProfileInput, type SkillInput } from '@/lib/validations'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { ResumeBuilderSection } from '@/components/profile/ResumeBuilderSection'
 
@@ -22,15 +23,14 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
   const [isLoading, setIsLoading] = useState(false)
   const [isDraftSaving, setIsDraftSaving] = useState(false)
   const [skills, setSkills] = useState<SkillInput[]>(initialData?.skills || [])
-  const [newSkill, setNewSkill] = useState<SkillInput>({
-    name: '',
-    proficiency: 'BEGINNER',
-    yearsUsed: 0,
-  })
   const [uploadedFile, setUploadedFile] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
+  
+  const jobTitleInputRef = useRef<HTMLInputElement>(null)
+  const locationInputRef = useRef<HTMLInputElement>(null)
+  const employmentTypeInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
@@ -62,7 +62,13 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
 
   const addJobTitle = (title: string) => {
     if (title && !jobTitlePrefs.includes(title)) {
+      console.log('Adding job title:', title)
       setValue('jobTitlePrefs', [...jobTitlePrefs, title])
+      console.log('Updated jobTitlePrefs:', [...jobTitlePrefs, title])
+    } else if (jobTitlePrefs.includes(title)) {
+      console.log('Job title already exists:', title)
+    } else {
+      console.log('Invalid job title:', title)
     }
   }
 
@@ -87,16 +93,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
     setValue('employmentTypes', types)
   }
 
-  const addSkill = () => {
-    if (newSkill.name && !skills.find(s => s.name === newSkill.name)) {
-      setSkills([...skills, newSkill])
-      setNewSkill({ name: '', proficiency: 'BEGINNER', yearsUsed: 0 })
-    }
-  }
-
-  const removeSkill = (index: number) => {
-    setSkills(skills.filter((_, i) => i !== index))
-  }
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true)
@@ -244,23 +240,25 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
               <Label>Job Title Preferences *</Label>
               <div className="flex gap-2 mt-1">
                 <Input
+                  ref={jobTitleInputRef}
                   placeholder="Add job title (e.g., Software Engineer)"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
-                      addJobTitle(e.currentTarget.value)
-                      e.currentTarget.value = ''
+                      if (jobTitleInputRef.current?.value) {
+                        addJobTitle(jobTitleInputRef.current.value)
+                        jobTitleInputRef.current.value = ''
+                      }
                     }
                   }}
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={(e) => {
-                    const input = (e.target as HTMLElement).parentElement?.querySelector('input')
-                    if (input?.value) {
-                      addJobTitle(input.value)
-                      input.value = ''
+                  onClick={() => {
+                    if (jobTitleInputRef.current?.value) {
+                      addJobTitle(jobTitleInputRef.current.value)
+                      jobTitleInputRef.current.value = ''
                     }
                   }}
                 >
@@ -315,23 +313,25 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
               <Label>Preferred Locations *</Label>
               <div className="flex gap-2 mt-1">
                 <Input
+                  ref={locationInputRef}
                   placeholder="Add location (e.g., New York, Remote)"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
-                      addLocation(e.currentTarget.value)
-                      e.currentTarget.value = ''
+                      if (locationInputRef.current?.value) {
+                        addLocation(locationInputRef.current.value)
+                        locationInputRef.current.value = ''
+                      }
                     }
                   }}
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={(e) => {
-                    const input = (e.target as HTMLElement).parentElement?.querySelector('input')
-                    if (input?.value) {
-                      addLocation(input.value)
-                      input.value = ''
+                  onClick={() => {
+                    if (locationInputRef.current?.value) {
+                      addLocation(locationInputRef.current.value)
+                      locationInputRef.current.value = ''
                     }
                   }}
                 >
@@ -400,56 +400,24 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <h2 className="text-xl font-semibold mb-4">Skills & Expertise</h2>
           
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <Input
-                placeholder="Skill name"
-                value={newSkill.name}
-                onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-              />
-              <Select
-                value={newSkill.proficiency}
-                onChange={(e) => setNewSkill({ ...newSkill, proficiency: e.target.value as any })}
-              >
-                <option value="BEGINNER">Beginner</option>
-                <option value="INTERMEDIATE">Intermediate</option>
-                <option value="ADVANCED">Advanced</option>
-                <option value="EXPERT">Expert</option>
-              </Select>
-              <Input
-                type="number"
-                placeholder="Years used"
-                value={newSkill.yearsUsed || ''}
-                onChange={(e) => setNewSkill({ ...newSkill, yearsUsed: parseInt(e.target.value) || 0 })}
-              />
-              <Button type="button" onClick={addSkill} variant="outline">
-                <Plus className="h-4 w-4 mr-1" />
-                Add Skill
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              {skills.map((skill, index) => (
-                <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium">{skill.name}</span>
-                    <span className="text-sm text-gray-600">{skill.proficiency}</span>
-                    {skill.yearsUsed && (
-                      <span className="text-sm text-gray-600">{skill.yearsUsed} years</span>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSkill(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SkillsAutocomplete
+            selectedSkills={skills.map(skill => ({
+              id: Date.now().toString() + Math.random(),
+              name: skill.name,
+              category: 'Technical', // Default category for profile skills
+              proficiency: skill.proficiency.charAt(0) + skill.proficiency.slice(1).toLowerCase() as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
+            }))}
+            onSkillsChange={(newSkills) => {
+              // Convert SkillsAutocomplete format back to ProfileForm format
+              const convertedSkills = newSkills.map(skill => ({
+                name: skill.name,
+                proficiency: skill.proficiency.toUpperCase() as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT',
+                yearsUsed: 0 // Default value since SkillsAutocomplete doesn't track years
+              }))
+              setSkills(convertedSkills)
+            }}
+            placeholder="Search and add your skills (e.g., JavaScript, Python, Project Management)..."
+          />
         </div>
 
         {/* Resume Builder */}

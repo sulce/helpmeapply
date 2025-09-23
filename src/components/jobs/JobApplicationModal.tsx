@@ -45,6 +45,7 @@ export function JobApplicationModal({
   const [customizeResume, setCustomizeResume] = useState(true)
   const [isApplying, setIsApplying] = useState(false)
   const [applicationResult, setApplicationResult] = useState<any>(null)
+  const [showReview, setShowReview] = useState(false)
 
   if (!isOpen || !job) return null
 
@@ -86,6 +87,7 @@ export function JobApplicationModal({
     setApplicationResult(null)
     setCoverLetter('')
     setCustomizeResume(true)
+    setShowReview(false)
     onClose()
   }
 
@@ -170,6 +172,174 @@ export function JobApplicationModal({
               <div className="pt-4 border-t">
                 <Button onClick={handleClose} className="w-full">
                   Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Review Modal
+  if (showReview) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <Card className="max-w-5xl w-full max-h-[90vh] overflow-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Review Your Application</h2>
+                <p className="text-gray-600">Please review your resume and cover letter before submitting</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowReview(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Resume Preview */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 flex items-center">
+                  <FileText className="h-5 w-5 mr-2" />
+                  Resume Preview
+                  {customizeResume && (
+                    <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      Will be customized
+                    </span>
+                  )}
+                </h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4 max-h-96 overflow-y-auto">
+                  {/* Contact Info */}
+                  <div>
+                    <h4 className="font-semibold text-blue-900">Contact Information</h4>
+                    <div className="text-sm space-y-1 mt-1">
+                      <p>{userResumeData?.contactInfo?.fullName || 'Name not provided'}</p>
+                      <p>{userResumeData?.contactInfo?.email || 'Email not provided'}</p>
+                      <p>{userResumeData?.contactInfo?.phone || 'Phone not provided'}</p>
+                      {userResumeData?.contactInfo?.address && <p>{userResumeData.contactInfo.address}</p>}
+                      {userResumeData?.contactInfo?.linkedin && <p>{userResumeData.contactInfo.linkedin}</p>}
+                    </div>
+                  </div>
+
+                  {/* Professional Summary */}
+                  {userResumeData?.professionalSummary && (
+                    <div>
+                      <h4 className="font-semibold text-blue-900">Professional Summary</h4>
+                      <p className="text-sm mt-1">{userResumeData.professionalSummary}</p>
+                    </div>
+                  )}
+
+                  {/* Skills */}
+                  {userResumeData?.skills?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-900">Skills ({userResumeData.skills.length})</h4>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {userResumeData.skills.slice(0, 10).map((skill: any, index: number) => (
+                          <span 
+                            key={index}
+                            className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                          >
+                            {skill.name || skill}
+                          </span>
+                        ))}
+                        {userResumeData.skills.length > 10 && (
+                          <span className="text-xs text-gray-500">
+                            +{userResumeData.skills.length - 10} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Experience */}
+                  {userResumeData?.experience?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-900">Experience ({userResumeData.experience.length} roles)</h4>
+                      <div className="space-y-2 mt-1">
+                        {userResumeData.experience.slice(0, 3).map((exp: any, index: number) => (
+                          <div key={index} className="text-sm">
+                            <p className="font-medium">{exp.jobTitle || 'Job Title'} at {exp.company || 'Company'}</p>
+                            <p className="text-gray-600 text-xs">
+                              {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.current ? 'Present' : exp.endDate}` : 'Date range not specified'}
+                            </p>
+                          </div>
+                        ))}
+                        {userResumeData.experience.length > 3 && (
+                          <p className="text-xs text-gray-500">+{userResumeData.experience.length - 3} more roles</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Education */}
+                  {userResumeData?.education?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-900">Education ({userResumeData.education.length})</h4>
+                      <div className="space-y-1 mt-1">
+                        {userResumeData.education.slice(0, 2).map((edu: any, index: number) => (
+                          <div key={index} className="text-sm">
+                            <p className="font-medium">{edu.degree || 'Degree'}</p>
+                            <p className="text-gray-600 text-xs">{edu.institution || 'Institution'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cover Letter Preview */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Cover Letter</h3>
+                {coverLetter.trim() ? (
+                  <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                      {coverLetter}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-yellow-800">No Cover Letter</h4>
+                        <p className="text-yellow-700 text-sm mt-1">
+                          You haven't written a cover letter. While optional, a good cover letter can significantly improve your chances.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center mt-6 pt-6 border-t">
+              <Button variant="outline" onClick={() => setShowReview(false)}>
+                ← Back to Edit
+              </Button>
+              
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel Application
+                </Button>
+                <Button 
+                  onClick={handleApply}
+                  disabled={isApplying}
+                  className="min-w-[160px]"
+                >
+                  {isApplying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Submit Application
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -365,23 +535,13 @@ export function JobApplicationModal({
                     </div>
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Review Button */}
                   <Button 
-                    onClick={handleApply}
-                    disabled={isApplying}
+                    onClick={() => setShowReview(true)}
                     className="w-full"
                   >
-                    {isApplying ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        {customizeResume ? 'Customizing & Submitting...' : 'Submitting Application...'}
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Submit Application
-                      </>
-                    )}
+                    <FileText className="h-4 w-4 mr-2" />
+                    Review & Submit Application
                   </Button>
                 </div>
               )}

@@ -16,13 +16,13 @@ const applyJobSchema = z.object({
       linkedin: z.string().optional(),
       website: z.string().optional()
     }),
-    professionalSummary: z.string(),
-    experience: z.array(z.any()),
-    education: z.array(z.any()),
-    skills: z.array(z.any()),
-    certifications: z.array(z.string()),
-    projects: z.array(z.string()),
-    languages: z.array(z.string())
+    professionalSummary: z.string().optional().default(''),
+    experience: z.array(z.any()).default([]),
+    education: z.array(z.any()).default([]),
+    skills: z.array(z.any()).default([]),
+    certifications: z.array(z.string()).default([]),
+    projects: z.array(z.string()).default([]),
+    languages: z.array(z.string()).default([])
   }),
   coverLetter: z.string().optional(),
   customizeResume: z.boolean().default(true)
