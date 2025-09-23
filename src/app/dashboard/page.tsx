@@ -170,10 +170,10 @@ export default function DashboardPage() {
 
   return (
     <Sidebar>
-      <div className="p-6">
-        <div className="space-y-8">
+      <div className="p-4 lg:p-6">
+        <div className="space-y-6">
           {/* Welcome Section */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
@@ -194,7 +194,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Profile Completion Section */}
-          <div className="mb-8">
+          <div className="mb-6">
             <ProfileCompletionCard profile={profile} compact={true} />
           </div>
 

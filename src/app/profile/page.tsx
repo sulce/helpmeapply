@@ -215,8 +215,8 @@ export default function ProfilePage() {
 
   return (
     <Sidebar>
-      <div className="p-6">
-        <div className="max-w-4xl space-y-8">
+      <div className="p-4 lg:p-6">
+        <div className="max-w-4xl space-y-6">
           {/* Profile Completion Card */}
           {profileData && (
             <ProfileCompletionCard profile={profileData} compact={true} />

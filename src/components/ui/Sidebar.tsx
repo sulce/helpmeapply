@@ -91,7 +91,7 @@ export function Sidebar({ children }: SidebarProps) {
         "fixed inset-y-0 left-0 z-40 flex flex-col bg-white shadow-lg transition-all duration-300 ease-in-out",
         // Desktop
         "hidden md:flex",
-        isCollapsed ? "w-16" : "w-64",
+        isCollapsed ? "w-16" : "w-56",
         // Mobile
         "md:relative md:translate-x-0",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
@@ -201,7 +201,7 @@ export function Sidebar({ children }: SidebarProps) {
       {/* Main content */}
       <div className={cn(
         "flex-1 flex flex-col min-h-0 transition-all duration-300",
-        isCollapsed ? "md:ml-16" : "md:ml-64"
+        isCollapsed ? "md:ml-16" : "md:ml-56"
       )}>
         <main className="flex-1 overflow-auto bg-gray-50">
           {children}

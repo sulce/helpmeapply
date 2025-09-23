@@ -24,7 +24,7 @@ export default function JobsPage() {
 
   return (
     <Sidebar>
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <JobsViewer />
       </div>
     </Sidebar>

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
+import { useAutoSave } from '@/hooks/useAutoSave'
 import { 
   Plus, 
   Trash2, 
@@ -14,7 +16,10 @@ import {
   Award,
   Code,
   Globe,
-  Settings
+  Settings,
+  CheckCircle,
+  AlertCircle,
+  Clock
 } from 'lucide-react'
 import { ALL_TEMPLATES, type TemplateRegion, getTemplateByRegion } from '@/lib/regionalTemplates'
 
@@ -108,11 +113,42 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
   const [activeSection, setActiveSection] = useState<string>('contact')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Auto-save functionality
+  const { saveStatus, saveNow, loadFromLocalStorage } = useAutoSave(resumeData, {
+    delay: 3000, // Save 3 seconds after user stops typing
+    localStorageKey: `resume-draft-${userId}`,
+    onSave: async (data) => {
+      if (onSave) {
+        await onSave(data)
+      }
+    },
+    onError: (error) => {
+      console.error('Auto-save failed:', error)
+    }
+  })
+
+  // Load initial data and any saved draft
   useEffect(() => {
+    // First, try to load saved draft
+    const savedDraft = loadFromLocalStorage()
+    
+    if (savedDraft) {
+      // Ask user if they want to restore the draft
+      const shouldRestore = window.confirm(
+        'We found a saved draft of your resume. Would you like to restore it?'
+      )
+      
+      if (shouldRestore) {
+        setResumeData(savedDraft)
+        return
+      }
+    }
+    
+    // Otherwise, use initial data if provided
     if (initialData) {
       setResumeData(prev => ({ ...prev, ...initialData }))
     }
-  }, [initialData])
+  }, [initialData, loadFromLocalStorage])
 
   const addExperience = () => {
     const newExp: Experience = {
@@ -208,6 +244,13 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
     }))
   }
 
+  const updateSkills = (newSkills: Skill[]) => {
+    setResumeData(prev => ({
+      ...prev,
+      skills: newSkills
+    }))
+  }
+
   const addListItem = (section: 'certifications' | 'projects' | 'languages') => {
     setResumeData(prev => ({
       ...prev,
@@ -282,7 +325,29 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Resume Builder</h1>
-        <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+          {/* Auto-save status indicator */}
+          <div className="flex items-center text-sm text-gray-600">
+            {saveStatus.status === 'saving' && (
+              <>
+                <Clock className="h-4 w-4 mr-1 animate-spin" />
+                Saving...
+              </>
+            )}
+            {saveStatus.status === 'saved' && (
+              <>
+                <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
+                Saved {saveStatus.lastSaved ? `at ${saveStatus.lastSaved.toLocaleTimeString()}` : ''}
+              </>
+            )}
+            {saveStatus.status === 'error' && (
+              <>
+                <AlertCircle className="h-4 w-4 mr-1 text-red-600" />
+                Save failed: {saveStatus.error}
+              </>
+            )}
+          </div>
+          
           <Button onClick={handleSave} disabled={isLoading}>
             <Save className="h-4 w-4 mr-2" />
             Save Resume
@@ -381,6 +446,7 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
                 onAdd={addSkill}
                 onUpdate={updateSkill}
                 onRemove={removeSkill}
+                onUpdateSkills={updateSkills}
               />
             )}
 
@@ -746,81 +812,49 @@ function SkillsSection({
   skills, 
   onAdd, 
   onUpdate, 
-  onRemove 
+  onRemove,
+  onUpdateSkills
 }: {
   skills: Skill[]
   onAdd: () => void
   onUpdate: (id: string, updates: Partial<Skill>) => void
   onRemove: (id: string) => void
+  onUpdateSkills: (skills: Skill[]) => void
 }) {
-  const categories = ['Technical', 'Soft Skills', 'Languages', 'Tools', 'Frameworks']
-  const proficiencyLevels = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Skills</h2>
-        <Button onClick={onAdd}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Skill
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {skills.map((skill) => (
-          <div key={skill.id} className="border rounded-lg p-4 space-y-3">
-            <div className="flex justify-between items-start">
-              <div className="flex-1 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Skill Name</label>
-                  <input
-                    type="text"
-                    value={skill.name}
-                    onChange={(e) => onUpdate(skill.id, { name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="JavaScript"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Category</label>
-                  <select
-                    value={skill.category}
-                    onChange={(e) => onUpdate(skill.id, { category: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Proficiency</label>
-                  <select
-                    value={skill.proficiency}
-                    onChange={(e) => onUpdate(skill.id, { proficiency: e.target.value as Skill['proficiency'] })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    {proficiencyLevels.map((level) => (
-                      <option key={level} value={level}>{level}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onRemove(skill.id)}
-                className="ml-3 text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <h2 className="text-2xl font-bold mb-4">Skills</h2>
+      
+      <SkillsAutocomplete
+        selectedSkills={skills}
+        onSkillsChange={(newSkills) => {
+          // Convert autocomplete skills to our Skill interface and update
+          const updatedSkills: Skill[] = newSkills.map(skill => {
+            // Try to find existing skill to preserve ID
+            const existingSkill = skills.find(s => 
+              s.name.toLowerCase() === skill.name.toLowerCase()
+            )
+            
+            return {
+              id: existingSkill?.id || skill.id,
+              name: skill.name,
+              category: skill.category,
+              proficiency: skill.proficiency
+            }
+          })
+          
+          onUpdateSkills(updatedSkills)
+        }}
+        placeholder="Search and add skills (e.g., JavaScript, Python, React)..."
+      />
+      
+      {skills.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <Code className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No skills added yet.</p>
+          <p className="text-sm">Start typing in the search box above to add your first skill.</p>
+        </div>
+      )}
     </div>
   )
 }

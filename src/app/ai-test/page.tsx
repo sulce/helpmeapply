@@ -28,9 +28,9 @@ export default function AITestPage() {
 
   return (
     <Sidebar>
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="max-w-6xl">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">AI System Testing</h1>
             <p className="mt-2 text-gray-600">
               Test the AI job matching and resume customization features
