@@ -24,9 +24,9 @@ export default function ApplicationsPage() {
 
   return (
     <Sidebar>
-      <div className="p-4 lg:p-6">
+      <div className="p-3 lg:p-4">
         <div className="max-w-6xl">
-          <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-3xl font-bold text-gray-900">Your Job Applications</h1>
             <p className="mt-2 text-gray-600">
               Track and manage all jobs the AI has applied to on your behalf

@@ -824,6 +824,9 @@ function SkillsSection({
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">Skills</h2>
+      <div className="p-2 bg-blue-50 text-blue-800 text-sm rounded">
+        DEBUG: Skills section loaded. Total skills: {skills.length}
+      </div>
       
       <SkillsAutocomplete
         selectedSkills={skills}

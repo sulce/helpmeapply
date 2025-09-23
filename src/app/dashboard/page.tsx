@@ -34,12 +34,23 @@ export default function DashboardPage() {
 
   const fetchProfile = useCallback(async () => {
     try {
-      const response = await fetch('/api/profile')
-      if (response.ok) {
-        const data = await response.json()
+      const [profileResponse, structuredResumeResponse] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/resume/structured').catch(() => null) // Don't fail if no structured resume
+      ])
+      
+      if (profileResponse.ok) {
+        const data = await profileResponse.json()
         
         // Parse profile data consistently
         const parsedProfile = parseProfileData(data.profile)
+        
+        // Check for structured resume data
+        if (structuredResumeResponse?.ok) {
+          const structuredData = await structuredResumeResponse.json()
+          parsedProfile.structuredResume = structuredData.resumeData
+        }
+        
         setProfile(parsedProfile)
         
         // Check if we should show onboarding
@@ -170,8 +181,8 @@ export default function DashboardPage() {
 
   return (
     <Sidebar>
-      <div className="p-4 lg:p-6">
-        <div className="space-y-6">
+      <div className="p-3 lg:p-4">
+        <div className="space-y-4">
           {/* Welcome Section */}
           <div className="bg-white shadow rounded-lg p-4 lg:p-6">
             <div className="flex items-center justify-between">

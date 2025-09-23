@@ -32,9 +32,9 @@ export default function AnalyticsPage() {
 
   return (
     <Sidebar>
-      <div className="p-4 lg:p-6">
+      <div className="p-3 lg:p-4">
         <div className="max-w-7xl">
-          <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
               <BarChart3 className="h-8 w-8 mr-3 text-blue-600" />
               Analytics Dashboard

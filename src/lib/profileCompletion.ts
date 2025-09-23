@@ -24,6 +24,7 @@ interface Profile {
   preferredLocations?: string[] | string | null // Can be array (parsed) or string (raw)
   employmentTypes?: string[] | string | null // Can be array (parsed) or string (raw)
   resumeUrl?: string | null
+  structuredResume?: any // For resume builder data
   linkedinUrl?: string | null
   skills?: Array<{
     name: string
@@ -101,7 +102,7 @@ export function calculateProfileCompletion(profile: Profile | null | undefined):
       console.log('Profile completion - Skills check:', { isArray, length, isComplete, skills: profile.skills })
       return isComplete
     })(), label: 'Skills (at least 3)', importance: 'critical' as const },
-    { key: 'resumeUrl', weight: 15, isComplete: !!profile.resumeUrl, label: 'Resume Upload', importance: 'critical' as const },
+    { key: 'resumeUrl', weight: 15, isComplete: !!(profile.resumeUrl || profile.structuredResume), label: 'Resume Upload', importance: 'critical' as const },
     
     // Important fields (enhance AI matching)
     { key: 'yearsExperience', weight: 8, isComplete: profile.yearsExperience !== null && profile.yearsExperience !== undefined, label: 'Years of Experience', importance: 'important' as const },
@@ -133,7 +134,7 @@ export function calculateProfileCompletion(profile: Profile | null | undefined):
 
   if (missingCritical.length > 0) {
     if (missingCritical.some(f => f.key === 'resumeUrl')) {
-      nextSteps.push('Upload your resume - this is essential for AI to customize applications')
+      nextSteps.push('Upload your resume or use the Resume Builder - this is essential for AI to customize applications')
     }
     if (missingCritical.some(f => f.key === 'jobTitlePrefs')) {
       nextSteps.push('Add job title preferences to help AI find relevant positions')
@@ -233,7 +234,7 @@ export function getOnboardingStep(profile: Profile | null): 'profile' | 'skills'
     return 'skills'
   }
   
-  if (!profile.resumeUrl) {
+  if (!profile.resumeUrl && !profile.structuredResume) {
     return 'resume'
   }
   

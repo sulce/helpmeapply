@@ -108,6 +108,9 @@ export function SkillsAutocomplete({
 
   return (
     <div className="space-y-4">
+      <div className="p-2 bg-green-50 text-green-800 text-sm rounded">
+        DEBUG: SkillsAutocomplete rendered. Selected: {selectedSkills.length}
+      </div>
       {/* Search Input */}
       <div className="relative">
         <input

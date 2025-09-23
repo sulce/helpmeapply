@@ -49,7 +49,7 @@ export function ProfileCompletionCard({ profile, compact = false, className = ''
       case 'skills':
         return '/profile?tab=skills'
       case 'resumeUrl':
-        return '/profile?tab=resume'
+        return '/resume-builder'
       case 'autoApplySettings':
         return '/profile?tab=automation'
       default:
