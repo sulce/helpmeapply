@@ -81,8 +81,11 @@ export async function generateStructuredResumePDF(
     creator: resumeData.contactInfo.fullName
   })
 
-  // Add header with contact info (and photo for EU templates)
+  // Add header with contact info (and photo for EU templates)  
   yPosition = addRegionalHeader(doc, resumeData, template, yPosition, margin, pageWidth)
+  
+  // Add template-specific styling elements
+  yPosition = addTemplateSpecificStyling(doc, template, yPosition, margin, contentWidth)
 
   // Add personal details for EU templates
   if (template.includePersonalDetails && resumeData.personalDetails) {
@@ -495,4 +498,54 @@ function addPersonalDetailsSection(
   }
   
   return yPosition
+}
+
+// Add template-specific visual styling elements
+function addTemplateSpecificStyling(
+  doc: jsPDF,
+  template: any,
+  yPosition: number,
+  margin: number,
+  contentWidth: number
+): number {
+  switch (template.id) {
+    case 'US':
+      // US style: Add a subtle underline below header
+      doc.setDrawColor(100, 100, 100)
+      doc.line(margin, yPosition - 5, margin + contentWidth, yPosition - 5)
+      return yPosition + 5
+      
+    case 'UK':
+      // UK style: Add a professional border box around the header area
+      doc.setDrawColor(50, 50, 150)
+      doc.setLineWidth(0.5)
+      doc.rect(margin - 5, 15, contentWidth + 10, yPosition - 10)
+      return yPosition + 8
+      
+    case 'CA':
+      // Canadian style: Add maple leaf accent and dual lines
+      doc.setDrawColor(255, 0, 0)
+      doc.line(margin, yPosition - 3, margin + contentWidth/3, yPosition - 3)
+      doc.setDrawColor(0, 0, 0)
+      doc.line(margin + contentWidth*2/3, yPosition - 3, margin + contentWidth, yPosition - 3)
+      return yPosition + 5
+      
+    case 'EU':
+      // European style: Add a professional blue accent bar
+      doc.setFillColor(41, 128, 185)
+      doc.rect(margin - 5, yPosition - 8, 5, yPosition + 200, 'F')
+      return yPosition + 3
+      
+    case 'ACADEMIC':
+      // Academic style: Add institutional styling with borders
+      doc.setDrawColor(139, 69, 19)
+      doc.setLineWidth(1)
+      doc.line(margin, yPosition - 5, margin + contentWidth, yPosition - 5)
+      doc.setLineWidth(0.5)
+      doc.line(margin, yPosition - 3, margin + contentWidth, yPosition - 3)
+      return yPosition + 8
+      
+    default:
+      return yPosition
+  }
 }

@@ -824,9 +824,6 @@ function SkillsSection({
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">Skills</h2>
-      <div className="p-2 bg-blue-50 text-blue-800 text-sm rounded">
-        DEBUG: Skills section loaded. Total skills: {skills.length}
-      </div>
       
       <SkillsAutocomplete
         selectedSkills={skills}
@@ -1012,13 +1009,35 @@ function TemplateSelectionSection({
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (file) {
-                    // In a real implementation, you'd upload this file
-                    // For now, we'll just use a placeholder URL
-                    const url = URL.createObjectURL(file)
-                    onChange({ photoUrl: url })
+                    // Upload the file to get a permanent URL
+                    try {
+                      const formData = new FormData()
+                      formData.append('file', file)
+                      formData.append('type', 'profile-photo')
+                      
+                      const uploadResponse = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                      })
+                      
+                      if (uploadResponse.ok) {
+                        const { fileUrl } = await uploadResponse.json()
+                        onChange({ photoUrl: fileUrl })
+                      } else {
+                        // Fallback to temporary URL if upload fails
+                        const url = URL.createObjectURL(file)
+                        onChange({ photoUrl: url })
+                        console.warn('Photo upload failed, using temporary URL')
+                      }
+                    } catch (error) {
+                      // Fallback to temporary URL if upload fails
+                      const url = URL.createObjectURL(file)
+                      onChange({ photoUrl: url })
+                      console.warn('Photo upload error, using temporary URL:', error)
+                    }
                   }
                 }}
                 className="text-sm"

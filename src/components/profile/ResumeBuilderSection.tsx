@@ -163,6 +163,29 @@ export function ResumeBuilderSection() {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border">
+      {/* Resume Builder Benefits Notification */}
+      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <FileText className="h-4 w-4 text-blue-600" />
+            </div>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-900 mb-1">
+              💡 Why Use Resume Builder Instead of Uploading?
+            </h3>
+            <div className="text-blue-800 text-sm space-y-1">
+              <p>• <strong>AI Customization:</strong> Automatically tailors your resume for each job application</p>
+              <p>• <strong>ATS-Friendly:</strong> Guaranteed to pass Applicant Tracking Systems</p>
+              <p>• <strong>No Formatting Issues:</strong> Perfect formatting every time, no corrupted PDFs</p>
+              <p>• <strong>Auto-Updates:</strong> Changes sync across all applications instantly</p>
+              <p>• <strong>Smart Matching:</strong> AI highlights relevant skills for each position</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold flex items-center">
           <FileText className="h-5 w-5 mr-2" />
