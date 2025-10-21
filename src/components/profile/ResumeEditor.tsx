@@ -132,25 +132,50 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
 
   // Load initial data and any saved draft
   useEffect(() => {
-    // First, try to load saved draft
-    const savedDraft = loadFromLocalStorage()
-    
-    if (savedDraft) {
-      // Ask user if they want to restore the draft
-      const shouldRestore = window.confirm(
-        'We found a saved draft of your resume. Would you like to restore it?'
-      )
+    const loadResumeData = async () => {
+      // First, check if there's imported resume data from Smart Resume Import
+      try {
+        const importResponse = await fetch('/api/resume/import')
+        if (importResponse.ok) {
+          const importData = await importResponse.json()
+          if (importData.hasExistingResume && importData.data.resumeData) {
+            const shouldUseImported = window.confirm(
+              'We found an imported resume with your data. Would you like to use it to populate the Resume Builder?'
+            )
+            
+            if (shouldUseImported) {
+              const importedData = importData.data.resumeData
+              setResumeData(importedData)
+              return
+            }
+          }
+        }
+      } catch (error) {
+        console.log('No imported resume data found')
+      }
+
+      // Then, try to load saved draft
+      const savedDraft = loadFromLocalStorage()
       
-      if (shouldRestore) {
-        setResumeData(savedDraft)
-        return
+      if (savedDraft) {
+        // Ask user if they want to restore the draft
+        const shouldRestore = window.confirm(
+          'We found a saved draft of your resume. Would you like to restore it?'
+        )
+        
+        if (shouldRestore) {
+          setResumeData(savedDraft)
+          return
+        }
+      }
+      
+      // Otherwise, use initial data if provided
+      if (initialData) {
+        setResumeData(prev => ({ ...prev, ...initialData }))
       }
     }
-    
-    // Otherwise, use initial data if provided
-    if (initialData) {
-      setResumeData(prev => ({ ...prev, ...initialData }))
-    }
+
+    loadResumeData()
   }, [initialData, loadFromLocalStorage])
 
   const addExperience = () => {

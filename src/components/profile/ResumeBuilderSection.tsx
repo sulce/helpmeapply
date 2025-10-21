@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { SmartResumeImport } from './SmartResumeImport'
 import { 
   FileText, 
   Plus, 
@@ -201,43 +202,17 @@ export function ResumeBuilderSection() {
       </div>
 
       {!resumeStatus.hasResume ? (
-        // No resume created yet
-        <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Create Your Professional Resume</h3>
-          <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Build a structured, professional resume that automatically customizes for each job application. 
-            No more corrupted PDFs or formatting issues.
-          </p>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center justify-center text-sm text-gray-700">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-              Clean, professional formatting
-            </div>
-            <div className="flex items-center justify-center text-sm text-gray-700">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-              AI-powered job customization
-            </div>
-            <div className="flex items-center justify-center text-sm text-gray-700">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-              ATS-friendly format
-            </div>
-          </div>
-
-          <Button 
-            onClick={() => window.open('/resume-builder', '_blank')}
-            size="lg"
-            className="mb-4"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Start Building Resume
-          </Button>
-
-          <p className="text-xs text-gray-500">
-            Opens in new tab • Takes 10-15 minutes to complete
-          </p>
-        </div>
+        // No resume created yet - show Smart Resume Import
+        <SmartResumeImport 
+          onImportComplete={(data) => {
+            // Refresh resume status after import
+            setTimeout(() => {
+              checkResumeStatus()
+            }, 1000)
+          }}
+          onStartResumeBuilder={() => window.open('/resume-builder', '_blank')}
+          className="border-0 shadow-none p-0"
+        />
       ) : (
         // Resume exists - show status and actions
         <div className="space-y-6">
