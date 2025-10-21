@@ -66,7 +66,7 @@ export function ForgotPasswordForm() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Check Your Email</h1>
           <p className="mt-2 text-gray-600">
-            If an account with <strong>{getValues(&quot;email&quot;)}</strong> exists, you will receive a password reset link.
+            If an account with <strong>{getValues("email")}</strong> exists, you will receive a password reset link.
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export function ForgotPasswordForm() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900">Forgot Password</h1>
         <p className="mt-2 text-gray-600">
-          Enter your email address and we&apos;ll send you a link to reset your password.
+          Enter your email address and we'll send you a link to reset your password.
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export function ForgotPasswordForm() {
       </div>
 
       <div className="text-center text-sm text-gray-600">
-        Don&apos;t have an account?{' '}
+        Don't have an account?{' '}
         <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
           Sign up
         </Link>
