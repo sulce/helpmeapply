@@ -305,7 +305,7 @@ export function JobApplicationModal({
                       <div>
                         <h4 className="font-medium text-yellow-800">No Cover Letter</h4>
                         <p className="text-yellow-700 text-sm mt-1">
-                          You haven't written a cover letter. While optional, a good cover letter can significantly improve your chances.
+                          You haven&apos;t written a cover letter. While optional, a good cover letter can significantly improve your chances.
                         </p>
                       </div>
                     </div>
