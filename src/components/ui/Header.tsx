@@ -3,6 +3,7 @@
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { Button } from './Button'
+import { Logo } from './Logo'
 
 export function Header() {
   const { data: session } = useSession()
@@ -12,11 +13,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center">
-            <Link href={session ? "/dashboard" : "/"}>
-              <h1 className="text-2xl font-bold text-gray-900 cursor-pointer">
-                HelpMeApply <span className="text-blue-600">AI</span>
-              </h1>
-            </Link>
+            <Logo href={session ? "/dashboard" : "/"} size="md" />
           </div>
           
           <div className="flex items-center space-x-4">

@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from './Button'
+import { Logo } from './Logo'
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -100,21 +101,17 @@ export function Sidebar({ children }: SidebarProps) {
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <Link href="/dashboard" className={cn(
-            "flex items-center space-x-2",
+          <div className={cn(
+            "flex items-center",
             isCollapsed && "justify-center"
           )}>
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Bot className="h-5 w-5 text-white" />
-            </div>
-            {!isCollapsed && (
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">
-                  HelpMeApply <span className="text-blue-600">AI</span>
-                </h1>
-              </div>
-            )}
-          </Link>
+            <Logo 
+              href="/dashboard" 
+              size="sm" 
+              showText={!isCollapsed}
+              className={isCollapsed ? "justify-center" : ""}
+            />
+          </div>
           
           {/* Desktop collapse button */}
           <div className="hidden md:block">
