@@ -421,23 +421,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
           />
         </div>
 
-        {/* Resume/CV Upload */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">Resume/CV Upload</h2>
-          <p className="text-gray-600 mb-4">
-            Upload your resume or CV to help us better understand your background and experience.
-          </p>
-          
-          <FileUpload
-            onFileSelect={(file) => handleFileUpload(file)}
-            onFileRemove={handleFileRemove}
-            currentFile={uploadedFile || watch('resumeUrl')}
-            isUploading={isUploading}
-            uploadProgress={uploadProgress}
-            error={uploadError}
-          />
-        </div>
-
         {/* Resume Builder */}
         <ResumeBuilderSection />
 
