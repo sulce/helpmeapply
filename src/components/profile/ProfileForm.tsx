@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { ResumeBuilderSection } from '@/components/profile/ResumeBuilderSection'
+import { FileUpload } from '@/components/ui/FileUpload'
 
 interface ProfileFormProps {
   initialData?: Partial<ProfileInput> & { skills?: SkillInput[] }
@@ -417,6 +418,23 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
               setSkills(convertedSkills)
             }}
             placeholder="Search and add your skills (e.g., JavaScript, Python, Project Management)..."
+          />
+        </div>
+
+        {/* Resume/CV Upload */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <h2 className="text-xl font-semibold mb-4">Resume/CV Upload</h2>
+          <p className="text-gray-600 mb-4">
+            Upload your resume or CV to help us better understand your background and experience.
+          </p>
+          
+          <FileUpload
+            onFileSelect={(file) => handleFileUpload(file)}
+            onFileRemove={handleFileRemove}
+            currentFile={uploadedFile || watch('resumeUrl')}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            error={uploadError}
           />
         </div>
 

@@ -1,5 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary'
 import { uploadFileToS3, deleteFileFromS3 } from './s3'
+import { promises as fs } from 'fs'
+import path from 'path'
 
 // Configure Cloudinary
 cloudinary.config({
@@ -11,7 +13,7 @@ cloudinary.config({
 export interface UploadResult {
   fileUrl: string
   fileName: string
-  provider: 'cloudinary' | 's3'
+  provider: 'cloudinary' | 's3' | 'local'
 }
 
 export interface UploadOptions {
@@ -90,7 +92,55 @@ async function uploadToS3(options: UploadOptions): Promise<UploadResult> {
   }
 }
 
-// Main upload function with priority: Cloudinary first, S3 fallback
+// Upload file to local storage (development fallback)
+async function uploadToLocal(options: UploadOptions): Promise<UploadResult> {
+  const { buffer, fileName, userId } = options
+  
+  console.log('Attempting upload to local storage...')
+  
+  // Create uploads directory if it doesn't exist
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'resumes', userId)
+  await fs.mkdir(uploadsDir, { recursive: true })
+  
+  // Create unique filename
+  const timestamp = Date.now()
+  const fileExtension = path.extname(fileName)
+  const baseName = path.basename(fileName, fileExtension)
+  const uniqueFileName = `${timestamp}-${baseName}${fileExtension}`
+  const filePath = path.join(uploadsDir, uniqueFileName)
+  
+  // Write file
+  await fs.writeFile(filePath, buffer)
+  
+  // Return public URL
+  const fileUrl = `/uploads/resumes/${userId}/${uniqueFileName}`
+  
+  console.log('Local storage upload successful:', fileUrl)
+  return {
+    fileUrl,
+    fileName,
+    provider: 'local'
+  }
+}
+
+// Delete file from local storage
+async function deleteFromLocal(fileUrl: string): Promise<void> {
+  console.log('Attempting to delete from local storage:', fileUrl)
+  
+  try {
+    const filePath = path.join(process.cwd(), 'public', fileUrl)
+    await fs.unlink(filePath)
+    console.log('Local file deleted successfully')
+  } catch (error) {
+    console.error('Local file delete error:', error)
+    // Don't throw error if file doesn't exist
+    if (error && typeof error === 'object' && 'code' in error && error.code !== 'ENOENT') {
+      throw error
+    }
+  }
+}
+
+// Main upload function with priority: Cloudinary first, S3 second, Local fallback
 export async function uploadFile(options: UploadOptions): Promise<UploadResult> {
   const errors: string[] = []
   
@@ -114,15 +164,25 @@ export async function uploadFile(options: UploadOptions): Promise<UploadResult> 
       return await uploadToS3(options)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown S3 error'
-      console.error('S3 upload also failed:', errorMessage)
+      console.warn('S3 upload failed, trying local storage fallback:', errorMessage)
       errors.push(`S3: ${errorMessage}`)
     }
   } else {
-    console.log('S3 not configured, no fallback available')
+    console.log('S3 not configured, trying local storage...')
     errors.push('S3: Not configured')
   }
   
-  // If both failed, throw an error with details
+  // Final fallback to local storage (always available in development)
+  try {
+    console.log('Using local storage as final fallback...')
+    return await uploadToLocal(options)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown local storage error'
+    console.error('Local storage upload also failed:', errorMessage)
+    errors.push(`Local: ${errorMessage}`)
+  }
+  
+  // If all failed, throw an error with details
   throw new Error(`All upload providers failed. Errors: ${errors.join(', ')}`)
 }
 
@@ -160,6 +220,9 @@ export async function deleteFile(fileUrl: string): Promise<void> {
     await deleteFromCloudinary(fileUrl)
   } else if (fileUrl.includes('amazonaws.com') || fileUrl.includes('s3.')) {
     await deleteFileFromS3(fileUrl)
+  } else if (fileUrl.startsWith('/uploads/')) {
+    // Local storage file
+    await deleteFromLocal(fileUrl)
   } else {
     throw new Error(`Unknown file provider for URL: ${fileUrl}`)
   }
@@ -192,6 +255,10 @@ export function getServiceStatus() {
     s3: {
       configured: isS3Configured(),
       priority: 2
+    },
+    local: {
+      configured: true, // Always available
+      priority: 3
     }
   }
 }
