@@ -36,8 +36,26 @@ export async function GET() {
       include: { autoApplySettings: true },
     })
 
+    // Return default settings for new users if no profile exists yet
     if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+      const defaultSettings = {
+        isEnabled: false,
+        minMatchScore: 0.75,
+        maxApplicationsPerDay: 5,
+        excludedCompanies: [],
+        excludedKeywords: [],
+        preferredSources: ['linkedin', 'indeed'],
+        requireSalaryRange: false,
+        autoScanEnabled: true,
+        scanFrequencyHours: 6,
+        notifyOnMatch: true,
+        notifyMinScore: 0.6,
+        requireApproval: true,
+        autoApplyEnabled: false,
+        customizeResume: true,
+        reviewTimeoutHours: 24,
+      }
+      return NextResponse.json({ success: true, settings: defaultSettings })
     }
 
     const settings = profile.autoApplySettings
@@ -53,7 +71,24 @@ export async function GET() {
       preferredSources: settings.preferredSources 
         ? JSON.parse(settings.preferredSources) 
         : ['linkedin', 'indeed'],
-    } : null
+    } : {
+      // Default settings for users with profile but no AI settings yet
+      isEnabled: false,
+      minMatchScore: 0.75,
+      maxApplicationsPerDay: 5,
+      excludedCompanies: [],
+      excludedKeywords: [],
+      preferredSources: ['linkedin', 'indeed'],
+      requireSalaryRange: false,
+      autoScanEnabled: true,
+      scanFrequencyHours: 6,
+      notifyOnMatch: true,
+      notifyMinScore: 0.6,
+      requireApproval: true,
+      autoApplyEnabled: false,
+      customizeResume: true,
+      reviewTimeoutHours: 24,
+    }
 
     return NextResponse.json({ success: true, settings: parsedSettings })
   } catch (error) {
@@ -88,7 +123,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Check profile completeness before enabling auto-apply
-    if (validatedData.isEnabled && validatedData.autoApplyEnabled) {
+    if (validatedData.isEnabled && (validatedData.autoApplyEnabled || validatedData.autoScanEnabled)) {
+      // Special check for preferred locations - required for job scanning
+      const preferredLocations = profile.preferredLocations ? 
+        (Array.isArray(profile.preferredLocations) ? profile.preferredLocations : JSON.parse(profile.preferredLocations || '[]')) : []
+      
+      if (preferredLocations.length === 0) {
+        return NextResponse.json({
+          error: 'Preferred locations required',
+          message: 'You must specify at least one preferred location before enabling AI job scanning. This ensures jobs are found only in locations where you want to work.',
+          details: {
+            missingField: 'preferredLocations',
+            action: 'Go to your profile and add preferred job locations'
+          }
+        }, { status: 400 })
+      }
+
       const transformedProfile = {
         fullName: profile.fullName,
         email: profile.email,

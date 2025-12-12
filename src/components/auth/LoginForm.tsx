@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { loginSchema, type LoginInput } from '@/lib/validations'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Label } from '@/components/ui/Label'
 import { Linkedin, Briefcase } from 'lucide-react'
 
@@ -99,9 +100,8 @@ function LoginFormContent() {
               Forgot password?
             </Link>
           </div>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             {...register('password')}
             error={errors.password?.message}
             placeholder="Enter your password"

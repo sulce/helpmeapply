@@ -13,6 +13,7 @@ interface UseAutoSaveOptions {
   localStorageKey?: string
   onSave?: (data: any) => Promise<void>
   onError?: (error: Error) => void
+  initialIsSaved?: boolean // Whether the initial data is already saved
 }
 
 export function useAutoSave<T>(
@@ -23,10 +24,14 @@ export function useAutoSave<T>(
     delay = 2000, // 2 seconds default
     localStorageKey,
     onSave,
-    onError
+    onError,
+    initialIsSaved = false
   } = options
 
-  const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>({ status: 'idle' })
+  const [saveStatus, setSaveStatus] = useState<AutoSaveStatus>({ 
+    status: initialIsSaved ? 'saved' : 'idle',
+    lastSaved: initialIsSaved ? new Date() : undefined
+  })
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const previousDataRef = useRef<T | undefined>(undefined)
   const mountedRef = useRef(true)

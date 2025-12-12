@@ -9,6 +9,7 @@ import { signIn } from 'next-auth/react'
 import { registerSchema, type RegisterInput } from '@/lib/validations'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Label } from '@/components/ui/Label'
 import { Linkedin, Briefcase } from 'lucide-react'
 
@@ -94,20 +95,19 @@ export function RegisterForm() {
 
         <div>
           <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             {...register('password')}
             error={errors.password?.message}
             placeholder="Enter your password"
+            showStrengthIndicator={true}
           />
         </div>
 
         <div>
           <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             {...register('confirmPassword')}
             error={errors.confirmPassword?.message}
             placeholder="Confirm your password"

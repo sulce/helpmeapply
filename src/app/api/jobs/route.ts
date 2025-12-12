@@ -14,7 +14,6 @@ const jobsQuerySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    // SECURITY FIX: Jobs should be filtered by user, not global
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
@@ -35,10 +34,55 @@ export async function GET(req: NextRequest) {
 
     const validatedParams = jobsQuerySchema.parse(queryParams)
 
-    // Build where clause - IMPORTANT: Filter by userId
-    const where: any = {
-      userId: session.user.id  // SECURITY FIX: Only show jobs for current user
+    // Build where clause - show jobs relevant to current user
+    console.log('Jobs API - User ID from session:', session.user.id)
+    
+    // Get job IDs from user's notifications and application reviews
+    const [userNotifications, userApplicationReviews] = await Promise.all([
+      prisma.jobNotification.findMany({
+        where: { userId: session.user.id },
+        select: { jobId: true }
+      }),
+      prisma.applicationReview.findMany({
+        where: { userId: session.user.id },
+        select: { jobId: true }
+      })
+    ])
+    
+    const jobIds = [
+      ...userNotifications.map(n => n.jobId),
+      ...userApplicationReviews.map(r => r.jobId)
+    ]
+    
+    // Remove duplicates
+    const uniqueJobIds = [...new Set(jobIds)]
+    
+    console.log('Jobs API - Job IDs from notifications:', userNotifications.length)
+    console.log('Jobs API - Job IDs from reviews:', userApplicationReviews.length)
+    console.log('Jobs API - Unique job IDs:', uniqueJobIds.length)
+    
+    // If no jobs found for user, return empty results
+    if (uniqueJobIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          jobs: [],
+          pagination: {
+            currentPage: 1,
+            totalPages: 0,
+            totalCount: 0,
+            limit: validatedParams.limit || 20,
+            hasMore: false,
+          }
+        }
+      })
     }
+    
+    const where: any = {
+      id: { in: uniqueJobIds }
+    }
+    
+    console.log('Jobs API - Query where clause:', JSON.stringify(where, null, 2))
     if (validatedParams.source) {
       where.source = validatedParams.source
     }
@@ -60,9 +104,64 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          jobNotifications: {
+            where: { userId: session.user.id },
+            select: { 
+              id: true, 
+              userId: true, 
+              status: true, 
+              customizedResume: true,
+              coverLetter: true,
+              matchScore: true 
+            }
+          }
+        }
       }),
       prisma.job.count({ where })
     ])
+
+    console.log('Jobs API - Found jobs:', jobs.length)
+    console.log('Jobs API - Total count:', totalCount)
+    
+    // Debug: Check what notifications exist for this user
+    const allNotifications = await prisma.jobNotification.findMany({
+      where: { userId: session.user.id },
+      include: { job: { select: { id: true, title: true, company: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    })
+    console.log('Jobs API - User notifications count:', allNotifications.length)
+    console.log('Jobs API - Recent notifications:', allNotifications.map(n => ({
+      id: n.id,
+      jobId: n.jobId,
+      userId: n.userId,
+      jobTitle: n.job?.title,
+      company: n.job?.company
+    })))
+    
+    // Debug: Check if the jobs referenced in notifications actually exist
+    const notificationJobIds = allNotifications.map(n => n.jobId)
+    const existingJobs = await prisma.job.findMany({
+      where: { id: { in: notificationJobIds } },
+      select: { id: true, title: true, company: true }
+    })
+    console.log('Jobs API - Jobs referenced in notifications:', notificationJobIds.length)
+    console.log('Jobs API - Jobs that actually exist:', existingJobs.length)
+    console.log('Jobs API - Existing jobs:', existingJobs)
+    
+    console.log('Jobs API - Sample jobs with notifications:', jobs.slice(0, 2).map(job => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      createdAt: job.createdAt,
+      notifications: job.jobNotifications
+    })))
+    
+    // Debug: Log the full notification data
+    if (jobs.length > 0 && jobs[0].jobNotifications?.length > 0) {
+      console.log('Jobs API - Full notification data for first job:', JSON.stringify(jobs[0].jobNotifications[0], null, 2))
+    }
 
     const totalPages = Math.ceil(totalCount / limit)
 

@@ -20,6 +20,7 @@ export function ForgotPasswordForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   const {
     register,
@@ -44,6 +45,7 @@ export function ForgotPasswordForm() {
       const result = await response.json()
 
       if (response.ok) {
+        setSuccessMessage(result.message || 'Password reset link sent to your email.')
         setIsSubmitted(true)
       } else {
         setError(result.error || 'Something went wrong. Please try again.')
@@ -66,7 +68,7 @@ export function ForgotPasswordForm() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Check Your Email</h1>
           <p className="mt-2 text-gray-600">
-            If an account with <strong>{getValues("email")}</strong> exists, you will receive a password reset link.
+            {successMessage}
           </p>
         </div>
 
@@ -84,7 +86,11 @@ export function ForgotPasswordForm() {
 
         <div className="space-y-3">
           <Button 
-            onClick={() => setIsSubmitted(false)} 
+            onClick={() => {
+              setIsSubmitted(false)
+              setSuccessMessage('')
+              setError('')
+            }} 
             variant="outline" 
             className="w-full"
           >

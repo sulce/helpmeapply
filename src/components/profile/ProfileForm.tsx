@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
+import { LocationsAutocomplete } from '@/components/ui/LocationsAutocomplete'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { ResumeBuilderSection } from '@/components/profile/ResumeBuilderSection'
 import { FileUpload } from '@/components/ui/FileUpload'
@@ -30,7 +31,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
   const [uploadError, setUploadError] = useState('')
   
   const jobTitleInputRef = useRef<HTMLInputElement>(null)
-  const locationInputRef = useRef<HTMLInputElement>(null)
   const employmentTypeInputRef = useRef<HTMLInputElement>(null)
 
   const {
@@ -77,15 +77,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
     setValue('jobTitlePrefs', jobTitlePrefs.filter((_, i) => i !== index))
   }
 
-  const addLocation = (location: string) => {
-    if (location && !preferredLocations.includes(location)) {
-      setValue('preferredLocations', [...preferredLocations, location])
-    }
-  }
-
-  const removeLocation = (index: number) => {
-    setValue('preferredLocations', preferredLocations.filter((_, i) => i !== index))
-  }
 
   const toggleEmploymentType = (type: string) => {
     const types = employmentTypes.includes(type as any)
@@ -312,50 +303,12 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
             {/* Locations */}
             <div>
               <Label>Preferred Locations *</Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  ref={locationInputRef}
-                  placeholder="Add location (e.g., New York, Remote)"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      if (locationInputRef.current?.value) {
-                        addLocation(locationInputRef.current.value)
-                        locationInputRef.current.value = ''
-                      }
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    if (locationInputRef.current?.value) {
-                      addLocation(locationInputRef.current.value)
-                      locationInputRef.current.value = ''
-                    }
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {preferredLocations.map((location, index) => (
-                  <span
-                    key={index}
-                    className="bg-primary-100 text-primary-800 px-2 py-1 rounded-md text-sm flex items-center gap-1"
-                  >
-                    {location}
-                    <button
-                      type="button"
-                      onClick={() => removeLocation(index)}
-                      className="text-primary-600 hover:text-primary-800"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+              <LocationsAutocomplete
+                selectedLocations={preferredLocations}
+                onLocationsChange={(locations) => setValue('preferredLocations', locations)}
+                placeholder="Search for cities, states, countries, or type 'Remote'"
+                maxLocations={5}
+              />
               {errors.preferredLocations && (
                 <p className="text-sm text-red-600 mt-1">{errors.preferredLocations.message}</p>
               )}

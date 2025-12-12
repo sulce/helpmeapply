@@ -23,7 +23,58 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { resumeUrl } = importResumeSchema.parse(body)
 
-    console.log('Starting resume import for user:', session.user.id, 'URL:', resumeUrl)
+    console.log('🚀 Starting resume import for user:', session.user.id, 'URL:', resumeUrl)
+
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('⚠️ OpenAI API key not configured, providing basic fallback')
+      
+      // Provide a basic fallback response without AI parsing
+      const basicResumeData = {
+        contactInfo: {
+          fullName: '',
+          email: session.user.email || '',
+          phone: '',
+          address: '',
+          linkedin: '',
+          website: ''
+        },
+        professionalSummary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        projects: [],
+        languages: [],
+        templateRegion: 'US',
+        includePhoto: false
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Resume uploaded successfully. Manual entry required for parsing.',
+        data: {
+          parseResult: {
+            confidence: 0.1,
+            warnings: ['Automatic parsing not available. Please manually enter your resume information.'],
+            extractedSections: {
+              contactInfo: false,
+              experience: 0,
+              education: 0,
+              skills: 0,
+              certifications: 0,
+              projects: 0,
+              summary: false
+            }
+          },
+          resumeData: basicResumeData,
+          completionPercentage: 10,
+          structuredResumeId: null,
+          profileUpdated: false,
+          requiresManualEntry: true
+        }
+      })
+    }
 
     // Parse the resume using AI
     const parseResult: ResumeParsingResult = await resumeParser.parseFromUrl(resumeUrl)
@@ -42,35 +93,37 @@ export async function POST(req: NextRequest) {
     const parsedData = parseResult.data
 
     // Store the parsed resume as structured resume data
+    console.log('💾 Saving structured resume data to database...')
     const structuredResume = await prisma.structuredResume.upsert({
       where: { userId: session.user.id },
       update: {
-        contactInfo: JSON.stringify(parsedData.contactInfo),
-        summary: parsedData.professionalSummary,
-        experience: JSON.stringify(parsedData.experience),
-        education: JSON.stringify(parsedData.education),
-        skills: JSON.stringify(parsedData.skills),
-        certifications: JSON.stringify(parsedData.certifications),
-        projects: JSON.stringify(parsedData.projects),
-        languages: JSON.stringify(parsedData.languages),
-        templateRegion: parsedData.templateRegion,
-        includePhoto: parsedData.includePhoto,
+        contactInfo: JSON.stringify(parsedData.contactInfo || {}),
+        summary: parsedData.professionalSummary || '',
+        experience: JSON.stringify(parsedData.experience || []),
+        education: JSON.stringify(parsedData.education || []),
+        skills: JSON.stringify(parsedData.skills || []),
+        certifications: JSON.stringify(parsedData.certifications || []),
+        projects: JSON.stringify(parsedData.projects || []),
+        languages: JSON.stringify(parsedData.languages || []),
+        templateRegion: parsedData.templateRegion || 'US',
+        includePhoto: parsedData.includePhoto || false,
         updatedAt: new Date()
       },
       create: {
         userId: session.user.id,
-        contactInfo: JSON.stringify(parsedData.contactInfo),
-        summary: parsedData.professionalSummary,
-        experience: JSON.stringify(parsedData.experience),
-        education: JSON.stringify(parsedData.education),
-        skills: JSON.stringify(parsedData.skills),
-        certifications: JSON.stringify(parsedData.certifications),
-        projects: JSON.stringify(parsedData.projects),
-        languages: JSON.stringify(parsedData.languages),
-        templateRegion: parsedData.templateRegion,
-        includePhoto: parsedData.includePhoto
+        contactInfo: JSON.stringify(parsedData.contactInfo || {}),
+        summary: parsedData.professionalSummary || '',
+        experience: JSON.stringify(parsedData.experience || []),
+        education: JSON.stringify(parsedData.education || []),
+        skills: JSON.stringify(parsedData.skills || []),
+        certifications: JSON.stringify(parsedData.certifications || []),
+        projects: JSON.stringify(parsedData.projects || []),
+        languages: JSON.stringify(parsedData.languages || []),
+        templateRegion: parsedData.templateRegion || 'US',
+        includePhoto: parsedData.includePhoto || false
       }
     })
+    console.log('✅ Structured resume saved with ID:', structuredResume.id)
 
     // Also update user's profile with key information if it's missing
     const profile = await prisma.profile.findUnique({
@@ -93,38 +146,48 @@ export async function POST(req: NextRequest) {
       profileUpdates.linkedinUrl = parsedData.contactInfo.linkedin
     }
 
-    // Update skills in profile if they're missing
-    if (parsedData.skills.length > 0) {
-      profileUpdates.skills = {
-        deleteMany: {}, // Clear existing skills
-        create: parsedData.skills.map(skill => ({
+    // Handle skills separately if we have any
+    const hasSkillsToUpdate = parsedData.skills && parsedData.skills.length > 0
+
+    // Apply profile updates if needed or ensure profile exists
+    const updatedProfile = await prisma.profile.upsert({
+      where: { userId: session.user.id },
+      update: profileUpdates,
+      create: {
+        userId: session.user.id,
+        fullName: parsedData.contactInfo.fullName || '',
+        email: parsedData.contactInfo.email || '',
+        mobile: parsedData.contactInfo.phone || '',
+        linkedinUrl: parsedData.contactInfo.linkedin || '',
+        jobTitlePrefs: JSON.stringify([]),
+        preferredLocations: JSON.stringify([]),
+        employmentTypes: JSON.stringify([]),
+        yearsExperience: 0,
+        salaryMin: 0,
+        salaryMax: 0,
+        ...profileUpdates
+      }
+    })
+
+    // Update skills separately if we have any
+    if (hasSkillsToUpdate) {
+      console.log('🎯 Updating', parsedData.skills.length, 'skills for profile:', updatedProfile.id)
+      
+      // First delete existing skills for this profile
+      await prisma.skill.deleteMany({
+        where: { profileId: updatedProfile.id }
+      })
+      
+      // Then create new skills
+      await prisma.skill.createMany({
+        data: parsedData.skills.map(skill => ({
+          profileId: updatedProfile.id,
           name: skill.name,
           proficiency: skill.proficiency.toUpperCase() as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT',
-          yearsUsed: 0 // Default value since we don't extract years from resume
+          yearsUsed: 0
         }))
-      }
-    }
-
-    // Apply profile updates if needed
-    if (Object.keys(profileUpdates).length > 0) {
-      await prisma.profile.upsert({
-        where: { userId: session.user.id },
-        update: profileUpdates,
-        create: {
-          userId: session.user.id,
-          fullName: parsedData.contactInfo.fullName || '',
-          email: parsedData.contactInfo.email || '',
-          mobile: parsedData.contactInfo.phone || '',
-          linkedinUrl: parsedData.contactInfo.linkedin || '',
-          jobTitlePrefs: [],
-          preferredLocations: [],
-          employmentTypes: [],
-          yearsExperience: 0,
-          salaryMin: 0,
-          salaryMax: 0,
-          ...profileUpdates
-        }
       })
+      console.log('✅ Skills updated successfully')
     }
 
     // Calculate completion percentage

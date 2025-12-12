@@ -253,6 +253,7 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
               <Switch
                 checked={isEnabled}
                 size="lg"
+                showIcons={true}
                 onChange={async (e) => {
                   const value = e.target.checked
                   setValue('isEnabled', value, { shouldDirty: true })
@@ -284,6 +285,8 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
                     </div>
                     <Switch 
                       checked={notifyOnMatch}
+                      size="md"
+                      showIcons={true}
                       onChange={async (e) => {
                         const value = e.target.checked
                         setValue('notifyOnMatch', value, { shouldDirty: true })
@@ -342,6 +345,8 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
                     </div>
                     <Switch 
                       checked={requireApproval}
+                      size="md"
+                      showIcons={true}
                       onChange={async (e) => {
                         const value = e.target.checked
                         setValue('requireApproval', value, { shouldDirty: true })
@@ -361,6 +366,8 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
                       </div>
                       <Switch 
                         checked={autoApplyEnabled}
+                        size="md"
+                        showIcons={true}
                         onChange={async (e) => {
                           const value = e.target.checked
                           setValue('autoApplyEnabled', value, { shouldDirty: true })
@@ -636,6 +643,8 @@ export function AutoApplySettings({ initialData, onSubmit }: AutoApplySettingsPr
                     </div>
                     <Switch 
                       checked={autoScanEnabled}
+                      size="md" 
+                      showIcons={true}
                       onChange={async (e) => {
                         const value = e.target.checked
                         setValue('autoScanEnabled', value, { shouldDirty: true })

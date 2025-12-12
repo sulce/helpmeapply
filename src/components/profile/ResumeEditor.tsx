@@ -88,9 +88,10 @@ interface ResumeEditorProps {
   userId: string
   onSave?: (resumeData: ResumeData) => void
   initialData?: Partial<ResumeData>
+  isInitialDataSaved?: boolean // Indicates if initial data is already saved to database
 }
 
-export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps) {
+export function ResumeEditor({ userId, onSave, initialData, isInitialDataSaved = false }: ResumeEditorProps) {
   const router = useRouter()
   const [resumeData, setResumeData] = useState<ResumeData>({
     contactInfo: {
@@ -120,6 +121,7 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
   const { saveStatus, saveNow, loadFromLocalStorage } = useAutoSave(resumeData, {
     delay: 30000, // Save 30 seconds after user stops typing (allows proper form filling)
     localStorageKey: `resume-draft-${userId}`,
+    initialIsSaved: isInitialDataSaved, // Don't show unsaved state if data is already saved
     onSave: async (data) => {
       if (onSave) {
         await onSave(data)
@@ -130,53 +132,12 @@ export function ResumeEditor({ userId, onSave, initialData }: ResumeEditorProps)
     }
   })
 
-  // Load initial data and any saved draft
+  // Load initial data when provided by parent component
   useEffect(() => {
-    const loadResumeData = async () => {
-      // First, check if there's imported resume data from Smart Resume Import
-      try {
-        const importResponse = await fetch('/api/resume/import')
-        if (importResponse.ok) {
-          const importData = await importResponse.json()
-          if (importData.hasExistingResume && importData.data.resumeData) {
-            const shouldUseImported = window.confirm(
-              'We found an imported resume with your data. Would you like to use it to populate the Resume Builder?'
-            )
-            
-            if (shouldUseImported) {
-              const importedData = importData.data.resumeData
-              setResumeData(importedData)
-              return
-            }
-          }
-        }
-      } catch (error) {
-        console.log('No imported resume data found')
-      }
-
-      // Then, try to load saved draft
-      const savedDraft = loadFromLocalStorage()
-      
-      if (savedDraft) {
-        // Ask user if they want to restore the draft
-        const shouldRestore = window.confirm(
-          'We found a saved draft of your resume. Would you like to restore it?'
-        )
-        
-        if (shouldRestore) {
-          setResumeData(savedDraft)
-          return
-        }
-      }
-      
-      // Otherwise, use initial data if provided
-      if (initialData) {
-        setResumeData(prev => ({ ...prev, ...initialData }))
-      }
+    if (initialData) {
+      setResumeData(prev => ({ ...prev, ...initialData }))
     }
-
-    loadResumeData()
-  }, [initialData, loadFromLocalStorage])
+  }, [initialData])
 
   const addExperience = () => {
     const newExp: Experience = {

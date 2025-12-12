@@ -34,6 +34,7 @@ export default function ResumeBuilderPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [initialData, setInitialData] = useState<Partial<ResumeData> | undefined>()
+  const [isInitialDataSaved, setIsInitialDataSaved] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function ResumeBuilderPage() {
         
         console.log('Loaded existing structured resume data')
         setInitialData(editorData)
+        setIsInitialDataSaved(true) // This data is already saved in the database
         return
       }
 
@@ -138,6 +140,7 @@ export default function ResumeBuilderPage() {
         
         console.log('Loaded profile data as starting point')
         setInitialData(resumeData)
+        setIsInitialDataSaved(false) // Profile data isn't saved as structured resume yet
       } else {
         // No profile exists - start with basic data
         console.log('No profile found, starting with empty resume')
@@ -158,6 +161,7 @@ export default function ResumeBuilderPage() {
           projects: [],
           languages: []
         })
+        setIsInitialDataSaved(false) // Empty data isn't saved
       }
     } catch (error) {
       console.error('Error loading resume data:', error)
@@ -179,6 +183,7 @@ export default function ResumeBuilderPage() {
         projects: [],
         languages: []
       })
+      setIsInitialDataSaved(false) // Error fallback data isn't saved
     } finally {
       setIsLoading(false)
     }
@@ -272,6 +277,7 @@ export default function ResumeBuilderPage() {
           userId={session.user.id}
           onSave={handleSave}
           initialData={initialData}
+          isInitialDataSaved={isInitialDataSaved}
         />
       </div>
     </Sidebar>

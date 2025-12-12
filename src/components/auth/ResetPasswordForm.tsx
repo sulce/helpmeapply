@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { z } from 'zod'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Label } from '@/components/ui/Label'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 
@@ -191,13 +192,13 @@ function ResetPasswordContent() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <Label htmlFor="password">New Password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             {...register('password')}
             error={errors.password?.message}
             placeholder="Enter your new password"
             autoFocus
+            showStrengthIndicator={true}
           />
           <p className="mt-1 text-xs text-gray-500">
             Password must be at least 8 characters long
@@ -206,9 +207,8 @@ function ResetPasswordContent() {
 
         <div>
           <Label htmlFor="confirmPassword">Confirm New Password</Label>
-          <Input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             {...register('confirmPassword')}
             error={errors.confirmPassword?.message}
             placeholder="Confirm your new password"

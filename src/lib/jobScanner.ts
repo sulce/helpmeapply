@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { analyzeJobMatch, generateCoverLetter } from './openai'
 import { createJobSearchService, JobSearchParams, NormalizedJob } from './jobAPIs'
+import { ResumeCustomizationService } from './resumeCustomizationService'
 
 const prisma = new PrismaClient()
 
@@ -82,12 +83,49 @@ export class JobScanner {
         const savedJob = await this.saveJobListing(job)
         processed++
 
-        if (settings.isEnabled || settings.autoApplyEnabled) {
+        if (settings.isEnabled) {
           const matchResult = await this.evaluateJobMatch(savedJob, profile, settings)
           
-          if (matchResult.shouldApply) {
-            await this.autoApplyToJob(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
-            applied++
+          // Check if job meets auto-apply threshold
+          const meetsAutoApplyThreshold = matchResult.matchScore >= settings.minMatchScore
+          // Check if job meets notification threshold  
+          const meetsNotifyThreshold = matchResult.matchScore >= settings.notifyMinScore
+          
+          console.log(`Job match analysis: ${savedJob.title} at ${savedJob.company}`)
+          console.log(`  Match Score: ${Math.round(matchResult.matchScore * 100)}%`)
+          console.log(`  Auto-apply threshold (${Math.round(settings.minMatchScore * 100)}%): ${meetsAutoApplyThreshold}`)
+          console.log(`  Notification threshold (${Math.round(settings.notifyMinScore * 100)}%): ${meetsNotifyThreshold}`)
+          
+          // ONLY process jobs that meet at least the notification threshold
+          if (meetsNotifyThreshold) {
+            if (meetsAutoApplyThreshold) {
+              // High scoring job - check if we should auto-apply or need approval
+              if (settings.requireApproval) {
+                // Create notification for user review instead of auto-applying
+                if (settings.notifyOnMatch) {
+                  await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
+                }
+              } else if (settings.autoApplyEnabled) {
+                // Only auto-apply if explicitly enabled AND approval not required
+                await this.autoApplyToJob(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
+                applied++
+              } else {
+                // Auto-apply disabled - create notification if enabled
+                if (settings.notifyOnMatch) {
+                  await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
+                }
+              }
+            } else {
+              // Medium scoring job (above notify threshold but below auto-apply threshold)
+              if (settings.notifyOnMatch) {
+                await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
+              }
+            }
+          } else {
+            console.log(`  Skipping job - below notification threshold`)
+            // Remove the job from database if it doesn't meet minimum threshold
+            await prisma.job.delete({ where: { id: savedJob.id } })
+            processed-- // Don't count this as processed
           }
         }
       }
@@ -120,6 +158,12 @@ export class JobScanner {
 
       // Search for each job title preference
       for (const jobTitle of jobTitlePrefs.slice(0, 3)) { // Limit to first 3 to manage API calls
+        // If no preferred locations, don't search - user must specify locations
+        if (preferredLocations.length === 0) {
+          console.log(`JobScanner - Skipping job search for "${jobTitle}" - no preferred locations specified`)
+          continue
+        }
+
         for (const location of preferredLocations.slice(0, 2)) { // Limit to first 2 locations
           // Format location for JSearch API
           let formattedLocation = location === 'Remote' ? undefined : location
@@ -127,9 +171,14 @@ export class JobScanner {
             formattedLocation = 'Toronto, ON, Canada'
           }
           
+          // Format query according to JSearch API docs: include location in query
+          const queryWithLocation = formattedLocation 
+            ? `${jobTitle} jobs in ${formattedLocation.replace(', ON, Canada', '').replace(', Ontario', '').replace('Toronto, ON, Canada', 'Toronto')}`
+            : `${jobTitle} jobs`
+          
           const searchParams: JobSearchParams = {
-            query: jobTitle,
-            location: formattedLocation,
+            query: queryWithLocation,
+            country: 'Ca', // Canada country code for JSearch API
             datePosted: 'week',
             employmentTypes: employmentTypes.length > 0 ? employmentTypes : undefined,
             page: 1,
@@ -137,11 +186,43 @@ export class JobScanner {
           }
 
           try {
-            console.log(`JobScanner - Searching: "${jobTitle}" in "${location}"`)
+            console.log(`JobScanner - Searching: "${jobTitle}" in "${formattedLocation || 'Remote'}"`)
             const response = await jobAPI.searchJobs(searchParams)
             const normalizedJobs = response.jobs.map(job => this.normalizeJobToListing(job))
-            console.log(`JobScanner - Found ${normalizedJobs.length} jobs for ${jobTitle}`)
-            allJobs.push(...normalizedJobs)
+            console.log(`JobScanner - Found ${normalizedJobs.length} jobs for ${jobTitle} in ${location}`)
+            
+            // Additional location filtering to ensure jobs match user preferences
+            const locationFilteredJobs = normalizedJobs.filter(job => {
+              console.log(`DEBUG - Job location: "${job.location}", User location: "${location}"`)
+              
+              if (!job.location) return formattedLocation === undefined // If no job location and we searched remote
+              
+              const jobLocation = job.location.toLowerCase()
+              const userLocation = location.toLowerCase()
+              
+              console.log(`DEBUG - Comparing: "${jobLocation}" vs "${userLocation}"`)
+              
+              // Check if job location matches user preference
+              if (location === 'Remote') {
+                return jobLocation.includes('remote') || jobLocation.includes('anywhere')
+              }
+              
+              // If job location is just country code "CA" and user is looking for Canadian locations
+              if (jobLocation === 'ca' && (userLocation.includes('canada') || userLocation.includes('toronto') || userLocation.includes('ontario'))) {
+                console.log(`DEBUG - Match result: true (Canadian job for Canadian location)`)
+                return true
+              }
+              
+              // For specific locations, check if job location contains user location
+              const match = jobLocation.includes(userLocation) || 
+                           jobLocation.includes(userLocation.split(',')[0]) // Check city name only
+              
+              console.log(`DEBUG - Match result: ${match}`)
+              return match
+            })
+            
+            console.log(`JobScanner - After location filtering: ${locationFilteredJobs.length}/${normalizedJobs.length} jobs for ${jobTitle} in ${location}`)
+            allJobs.push(...locationFilteredJobs)
 
             // Add delay to respect rate limits
             await new Promise(resolve => setTimeout(resolve, 1000))
@@ -329,11 +410,9 @@ export class JobScanner {
         },
       })
 
-      const shouldApply = matchAnalysis.matchScore >= (settings.minMatchScore || settings.notifyMinScore || 0.6)
-      
-      // Generate cover letter if we're going to apply
+      // Generate cover letter for high-scoring jobs (above min threshold)
       let coverLetter = ''
-      if (shouldApply) {
+      if (matchAnalysis.matchScore >= settings.notifyMinScore) {
         try {
           coverLetter = await generateCoverLetter({
             profile: {
@@ -363,7 +442,6 @@ export class JobScanner {
       })
 
       return {
-        shouldApply,
         matchScore: matchAnalysis.matchScore,
         analysis: matchAnalysis,
         coverLetter,
@@ -371,11 +449,96 @@ export class JobScanner {
     } catch (error) {
       console.error('Error evaluating job match:', error)
       return {
-        shouldApply: false,
         matchScore: 0,
         analysis: null,
         coverLetter: '',
       }
+    }
+  }
+
+  private async createJobNotification(job: any, profile: any, matchScore: number, coverLetter: string) {
+    try {
+      // Set expiration time based on reviewTimeoutHours setting
+      const expiresAt = new Date()
+      expiresAt.setHours(expiresAt.getHours() + (profile.autoApplySettings?.reviewTimeoutHours || 24))
+
+      // Generate proper customized resume if enabled
+      let customizedResumeUrl = null
+      if (profile.autoApplySettings?.customizeResume && profile.resumeUrl) {
+        try {
+          const customizationService = ResumeCustomizationService.getInstance()
+          const customizationResult = await customizationService.customizeResume({
+            originalResume: {
+              url: profile.resumeUrl,
+              filename: `${profile.fullName}_resume.pdf`
+            },
+            job: {
+              title: job.title,
+              company: job.company,
+              description: job.description || '',
+              requirements: []
+            },
+            profile: {
+              fullName: profile.fullName,
+              skills: profile.skills || [],
+              jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
+              yearsExperience: profile.yearsExperience || 0
+            }
+          }, profile.userId)
+          
+          customizedResumeUrl = customizationResult.customizedPdfUrl || profile.resumeUrl
+          console.log(`Resume customized successfully for: ${job.title} at ${job.company}`)
+        } catch (error) {
+          console.error('Error customizing resume:', error)
+          // Fall back to original resume
+          customizedResumeUrl = profile.resumeUrl
+        }
+      }
+
+      // Generate proper cover letter if not provided
+      let finalCoverLetter = coverLetter
+      if (!finalCoverLetter || finalCoverLetter.trim().length === 0) {
+        try {
+          finalCoverLetter = await generateCoverLetter({
+            profile: {
+              fullName: profile.fullName,
+              skills: profile.skills || [],
+              jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
+              yearsExperience: profile.yearsExperience || 0
+            },
+            job: {
+              title: job.title,
+              company: job.company,
+              description: job.description || '',
+              requirements: []
+            }
+          })
+          console.log(`Cover letter generated for: ${job.title} at ${job.company}`)
+        } catch (error) {
+          console.error('Error generating cover letter:', error)
+          finalCoverLetter = '' // Leave empty if generation fails
+        }
+      }
+
+      console.log(`Creating notification with userId: ${profile.userId}, jobId: ${job.id}`)
+      
+      await prisma.jobNotification.create({
+        data: {
+          userId: profile.userId,
+          jobId: job.id,
+          matchScore,
+          status: 'PENDING',
+          message: `Found a ${Math.round(matchScore * 100)}% match: ${job.title} at ${job.company}`,
+          customizedResume: customizedResumeUrl,
+          coverLetter: finalCoverLetter,
+          expiresAt,
+        },
+      })
+
+      console.log(`Created notification for ${job.title} at ${job.company} (Match: ${Math.round(matchScore * 100)}%) - requires approval`)
+    } catch (error) {
+      console.error('Error creating job notification:', error)
+      throw error
     }
   }
 

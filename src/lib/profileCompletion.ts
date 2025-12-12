@@ -201,8 +201,24 @@ export function shouldShowOnboarding(profile: Profile | null): boolean {
   if (!profile) return true
   
   const completion = calculateProfileCompletion(profile)
-  // Show onboarding if profile completion is less than 60% or missing critical fields
   const hasCriticalMissing = completion.missingFields.some(f => f.importance === 'critical')
+  const criticalMissing = completion.missingFields.filter(f => f.importance === 'critical')
+  
+  // If user has AI automation settings configured, they've completed onboarding
+  // Don't show onboarding again unless they're missing critical fields
+  if (profile.autoApplySettings) {
+    // Special case: If ONLY missing jobTitlePrefs but has resume, don't show onboarding
+    // This fixes the issue where users uploaded resume but never manually set job titles
+    if (criticalMissing.length === 1 && criticalMissing[0].field === 'jobTitlePrefs' && 
+        (profile.resumeUrl || profile.structuredResume)) {
+      return false
+    }
+    
+    return hasCriticalMissing
+  }
+  
+  // For users without AI settings, use the original logic
+  // Show onboarding if profile completion is less than 60% or missing critical fields
   return completion.percentage < 60 || hasCriticalMissing
 }
 
@@ -226,21 +242,68 @@ export function parseProfileData(rawProfile: any): any | null {
 }
 
 export function getOnboardingStep(profile: Profile | null): 'profile' | 'skills' | 'resume' | 'preferences' | 'complete' {
-  if (!profile?.fullName || !profile?.email || !Array.isArray(profile?.jobTitlePrefs) || profile.jobTitlePrefs.length === 0) {
+  console.log('🎯 Checking onboarding step for profile:', {
+    hasProfile: !!profile,
+    fullName: profile?.fullName,
+    email: profile?.email,
+    jobTitlePrefs: profile?.jobTitlePrefs,
+    jobTitlePrefsLength: Array.isArray(profile?.jobTitlePrefs) ? profile.jobTitlePrefs.length : 'not array',
+    skillsLength: Array.isArray(profile?.skills) ? profile.skills.length : 'not array',
+    resumeUrl: !!profile?.resumeUrl,
+    structuredResume: !!profile?.structuredResume,
+    autoApplySettings: !!profile?.autoApplySettings
+  })
+
+  // If no profile exists or basic info is missing, start with profile setup
+  if (!profile?.fullName || !profile?.email) {
+    console.log('🎯 Returning: profile - missing basic info')
+    return 'profile'
+  }
+
+  // If user has a resume uploaded, skip to skills regardless of job title prefs
+  // This fixes the issue where onboarding gets stuck on resume setup step
+  if (profile.resumeUrl || profile.structuredResume) {
+    // If skills are insufficient, go to skills step
+    if (!Array.isArray(profile.skills) || profile.skills.length < 3) {
+      console.log('🎯 Returning: skills - resume exists but skills insufficient')
+      return 'skills'
+    }
+    
+    // If no automation preferences set, go to preferences
+    if (!profile.autoApplySettings) {
+      console.log('🎯 Returning: preferences - resume and skills exist')
+      return 'preferences'
+    }
+    
+    // Everything is complete
+    console.log('🎯 Returning: complete - all requirements met')
+    return 'complete'
+  }
+
+  // No resume uploaded yet - check if job title prefs are set
+  if (!Array.isArray(profile?.jobTitlePrefs) || profile.jobTitlePrefs.length === 0) {
+    console.log('🎯 Returning: profile - no job title preferences')
     return 'profile'
   }
   
+  // If skills are insufficient, go to skills step
   if (!Array.isArray(profile.skills) || profile.skills.length < 3) {
+    console.log('🎯 Returning: skills')
     return 'skills'
   }
   
+  // Resume is still needed
   if (!profile.resumeUrl && !profile.structuredResume) {
+    console.log('🎯 Returning: resume')
     return 'resume'
   }
   
+  // Automation preferences needed
   if (!profile.autoApplySettings) {
+    console.log('🎯 Returning: preferences')
     return 'preferences'
   }
   
+  console.log('🎯 Returning: complete')
   return 'complete'
 }

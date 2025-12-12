@@ -41,8 +41,12 @@ export function JobApplicationModal({
   onClose, 
   userResumeData 
 }: JobApplicationModalProps) {
-  const [coverLetter, setCoverLetter] = useState('')
+  // Check if this job has pre-generated content from notifications
+  const jobNotification = (job as any)?.jobNotifications?.[0] || (job as any)?.notifications?.[0]
+  
+  const [coverLetter, setCoverLetter] = useState(jobNotification?.coverLetter || '')
   const [customizeResume, setCustomizeResume] = useState(true)
+  const [customizedResumeUrl, setCustomizedResumeUrl] = useState(jobNotification?.customizedResume || null)
   const [isApplying, setIsApplying] = useState(false)
   const [applicationResult, setApplicationResult] = useState<any>(null)
   const [showReview, setShowReview] = useState(false)
@@ -203,7 +207,11 @@ export function JobApplicationModal({
                 <h3 className="text-lg font-semibold mb-3 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
                   Resume Preview
-                  {customizeResume && (
+                  {customizedResumeUrl ? (
+                    <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                      Customized for this job
+                    </span>
+                  ) : customizeResume && (
                     <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
                       Will be customized
                     </span>

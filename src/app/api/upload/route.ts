@@ -5,10 +5,13 @@ import { uploadFile, deleteFile, validateFileType, validateFileSize, getServiceS
 import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
+  console.log('📤 Upload API called')
   try {
     const session = await getServerSession(authOptions)
+    console.log('🔐 Session check:', session?.user?.id ? 'Authenticated' : 'Not authenticated')
     
     if (!session?.user?.id) {
+      console.log('❌ Unauthorized upload attempt')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -17,8 +20,10 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    console.log('📄 File received:', file?.name, 'Size:', file?.size, 'Type:', file?.type)
 
     if (!file) {
+      console.log('❌ No file provided in upload')
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
@@ -27,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Validate file type and size
     if (!validateFileType(file)) {
+      console.log('❌ Invalid file type:', file.type)
       return NextResponse.json(
         { error: 'Invalid file type. Please upload PDF, DOC, DOCX, or TXT files.' },
         { status: 400 }
@@ -34,11 +40,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!validateFileSize(file)) {
+      console.log('❌ File too large:', file.size)
       return NextResponse.json(
         { error: 'File size too large. Maximum size is 5MB.' },
         { status: 400 }
       )
     }
+
+    console.log('✅ File validation passed')
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer()

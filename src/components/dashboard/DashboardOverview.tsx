@@ -109,6 +109,7 @@ export function DashboardOverview({
                 {jobStats ? jobStats.newJobs : '--'}
               </div>
               <div className="text-sm text-gray-600">New Jobs</div>
+              <div className="text-xs text-gray-500 mt-1">Last 24 hours</div>
             </div>
           </div>
           <div className="mt-4">
@@ -117,7 +118,7 @@ export function DashboardOverview({
               onClick={() => router.push('/jobs')}
               className="w-full"
             >
-              View Jobs
+              View All Jobs
             </Button>
           </div>
         </Card>

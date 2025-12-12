@@ -143,10 +143,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Re-fetch the profile with skills to return the complete data
+    // Re-fetch the profile with skills and auto-apply settings to return the complete data
     const updatedProfile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
-      include: { skills: true },
+      include: { 
+        skills: true,
+        autoApplySettings: true
+      },
     })
 
     return NextResponse.json({ profile: updatedProfile }, { status: 200 })
@@ -186,7 +189,10 @@ export async function GET(req: NextRequest) {
 
     let profile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
-      include: { skills: true },
+      include: { 
+        skills: true,
+        autoApplySettings: true
+      },
     })
 
     // If no profile exists, create a basic one with session data
@@ -200,7 +206,10 @@ export async function GET(req: NextRequest) {
           preferredLocations: '[]',
           employmentTypes: '[]',
         },
-        include: { skills: true },
+        include: { 
+          skills: true,
+          autoApplySettings: true
+        },
       })
     }
 

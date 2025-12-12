@@ -18,22 +18,19 @@ export async function POST(req: NextRequest) {
       select: { id: true, email: true, password: true }
     })
 
-    // Always return success message for security (don't reveal if email exists)
-    const successMessage = 'If an account with that email exists, you will receive a password reset link.'
-
     if (!user) {
       return NextResponse.json({ 
-        success: true, 
-        message: successMessage 
-      })
+        success: false, 
+        error: 'No account found with that email address.'
+      }, { status: 404 })
     }
 
     // Check if user has a password (not OAuth-only account)
     if (!user.password) {
       return NextResponse.json({ 
-        success: true, 
-        message: successMessage 
-      })
+        success: false, 
+        error: 'This account was created using social login (Google/LinkedIn). Please sign in using your social account instead.'
+      }, { status: 400 })
     }
 
     // Generate reset token
@@ -71,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: successMessage 
+      message: 'Password reset link sent to your email. Check your inbox and click the link to reset your password.'
     })
 
   } catch (error) {

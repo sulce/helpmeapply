@@ -10,6 +10,7 @@ import { ResumeViewer } from '@/components/profile/ResumeViewer'
 import { ApplicationsList } from '@/components/dashboard/ApplicationsList'
 import { ProfileCompletionCard } from '@/components/profile/ProfileCompletionCard'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
+import { FirstTimeUserSetup } from '@/components/onboarding/FirstTimeUserSetup'
 import { DashboardOverview } from '@/components/dashboard/DashboardOverview'
 import { PerformanceAnalytics } from '@/components/dashboard/PerformanceAnalytics'
 import { ResumeAnalytics } from '@/components/dashboard/ResumeAnalytics'
@@ -29,6 +30,7 @@ export default function DashboardPage() {
   const [isLoadingApplications, setIsLoadingApplications] = useState(true)
   const [autoApplySettings, setAutoApplySettings] = useState<any>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false)
   const [jobStats, setJobStats] = useState<any>(null)
   const [isScanning, setIsScanning] = useState(false)
 
@@ -53,12 +55,42 @@ export default function DashboardPage() {
         
         setProfile(parsedProfile)
         
+        // Check if this is a first-time user (no profile exists or very incomplete)
+        const isFirstTime = !parsedProfile || 
+          (!parsedProfile.fullName && 
+           !parsedProfile.jobTitlePrefs?.length && 
+           !parsedProfile.resumeUrl && 
+           !parsedProfile.structuredResume)
+        setIsFirstTimeUser(isFirstTime)
+        
         // Check if we should show onboarding
         const shouldShow = shouldShowOnboarding(parsedProfile)
+        console.log('📊 Dashboard onboarding check:', {
+          shouldShow,
+          profile: {
+            fullName: parsedProfile?.fullName,
+            email: parsedProfile?.email,
+            jobTitlePrefs: parsedProfile?.jobTitlePrefs,
+            skills: parsedProfile?.skills?.length,
+            resumeUrl: parsedProfile?.resumeUrl,
+            structuredResume: !!parsedProfile?.structuredResume,
+            autoApplySettings: !!parsedProfile?.autoApplySettings
+          }
+        })
         setShowOnboarding(shouldShow)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
+      // On error, treat as first-time user with minimal data from session
+      setProfile({
+        fullName: session?.user?.name || '',
+        email: session?.user?.email || '',
+        jobTitlePrefs: [],
+        preferredLocations: [],
+        employmentTypes: [],
+        skills: []
+      })
+      setIsFirstTimeUser(true)
     } finally {
       setIsLoadingProfile(false)
     }
@@ -161,10 +193,31 @@ export default function DashboardPage() {
   }, [status, fetchProfile])
 
   // Refresh profile data after onboarding
-  const handleOnboardingComplete = useCallback(() => {
+  const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false)
-    fetchProfile()
-  }, [fetchProfile])
+    // Fetch profile without triggering onboarding check
+    try {
+      const [profileResponse, structuredResumeResponse] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/resume/structured')
+      ])
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json()
+        let parsedProfile = parseProfileData(profileData.profile)
+
+        if (structuredResumeResponse?.ok) {
+          const structuredData = await structuredResumeResponse.json()
+          parsedProfile.structuredResume = structuredData.resumeData
+        }
+
+        setProfile(parsedProfile)
+        // Don't call shouldShowOnboarding here - user just completed it!
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    }
+  }, [])
 
   // Allow onboarding wizard to trigger profile refresh
   const handleOnboardingRefresh = useCallback(() => {
@@ -173,6 +226,20 @@ export default function DashboardPage() {
 
   const handleOnboardingSkip = useCallback(() => {
     setShowOnboarding(false)
+  }, [])
+
+  const handleFirstTimeUserComplete = useCallback(async (method: 'upload' | 'manual') => {
+    setIsFirstTimeUser(false)
+    
+    if (method === 'upload') {
+      // Resume was uploaded and parsed, refresh profile and stay on dashboard
+      await fetchProfile()
+    }
+    // For manual entry, the FirstTimeUserSetup component handles the redirect to resume builder
+  }, [fetchProfile])
+
+  const handleFirstTimeUserSkip = useCallback(() => {
+    setIsFirstTimeUser(false)
   }, [])
 
   if (status === 'loading' || isLoadingProfile) {
@@ -330,8 +397,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* First Time User Setup */}
+      {isFirstTimeUser && (
+        <FirstTimeUserSetup
+          onComplete={handleFirstTimeUserComplete}
+          onSkip={handleFirstTimeUserSkip}
+          userEmail={session?.user?.email || undefined}
+          userName={session?.user?.name || undefined}
+        />
+      )}
+
       {/* Onboarding Wizard */}
-      {showOnboarding && (
+      {!isFirstTimeUser && showOnboarding && (
         <OnboardingWizard
           profile={profile}
           onComplete={handleOnboardingComplete}

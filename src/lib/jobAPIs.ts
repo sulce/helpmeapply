@@ -183,6 +183,7 @@ export interface NormalizedJob {
 export interface JobSearchParams {
   query: string
   location?: string
+  country?: string
   datePosted?: 'all' | 'today' | '3days' | 'week' | 'month'
   employmentTypes?: string[]
   jobRequirements?: string[]
@@ -281,8 +282,8 @@ export class JSearchAPI {
         date_posted: params.datePosted || 'all',
       }
 
-      if (params.location) {
-        apiParams.location = params.location
+      if (params.country) {
+        apiParams.country = params.country
       }
 
       if (params.employmentTypes && params.employmentTypes.length > 0) {
@@ -314,10 +315,26 @@ export class JSearchAPI {
           job_id: response.data[0].job_id,
           job_title: response.data[0].job_title,
           employer_name: response.data[0].employer_name,
+          job_city: response.data[0].job_city,
+          job_state: response.data[0].job_state,
+          job_country: response.data[0].job_country,
           job_required_skills: response.data[0].job_required_skills,
           job_job_title: response.data[0].job_job_title
         } : 'No jobs'
       })
+      
+      // DEBUG: Log all job locations to understand what JSearch is returning
+      console.log('JSearch API All Job Locations:', 
+        response.data?.map((job: any, index: number) => ({
+          index,
+          city: job.job_city,
+          state: job.job_state,
+          country: job.job_country,
+          formatted: job.job_city && job.job_state 
+            ? `${job.job_city}, ${job.job_state}` 
+            : job.job_city || job.job_state || job.job_country
+        })) || []
+      )
       
       const validatedResponse = jobSearchResponseSchema.parse(response)
 
