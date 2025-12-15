@@ -62,14 +62,21 @@ export function JobsViewer() {
   const [userResumeData, setUserResumeData] = useState<any>(null)
 
   useEffect(() => {
-    fetchJobs()
-    fetchScanStatus()
-    loadUserResumeData()
+    // Add a small delay to ensure session is ready
+    const timer = setTimeout(() => {
+      fetchJobs()
+      fetchScanStatus()
+      loadUserResumeData()
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [])
 
   const fetchJobs = async (page = 1) => {
     try {
-      const response = await fetch(`/api/jobs?page=${page}&limit=20`)
+      const response = await fetch(`/api/jobs?page=${page}&limit=20`, {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setJobs(data.data?.jobs || [])
@@ -102,7 +109,9 @@ export function JobsViewer() {
   const loadUserResumeData = async () => {
     try {
       // Try to load user's structured resume data
-      const response = await fetch('/api/resume/structured')
+      const response = await fetch('/api/resume/structured', {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setUserResumeData(data.resumeData)

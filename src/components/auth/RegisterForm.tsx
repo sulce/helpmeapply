@@ -119,6 +119,8 @@ export function RegisterForm() {
         </Button>
       </form>
 
+{/* OAuth providers disabled - not integrated yet */}
+      {/* 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-gray-300" />
@@ -147,6 +149,7 @@ export function RegisterForm() {
           Sign up with Indeed
         </Button>
       </div>
+      */}
 
       <p className="text-center text-sm text-gray-600">
         Already have an account?{' '}

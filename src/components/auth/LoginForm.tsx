@@ -113,6 +113,8 @@ function LoginFormContent() {
         </Button>
       </form>
 
+{/* OAuth providers disabled - not integrated yet */}
+      {/* 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-gray-300" />
@@ -141,6 +143,7 @@ function LoginFormContent() {
           Sign in with Indeed
         </Button>
       </div>
+      */}
 
       <p className="text-center text-sm text-gray-600">
         Don&apos;t have an account?{' '}

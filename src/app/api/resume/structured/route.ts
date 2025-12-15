@@ -6,10 +6,14 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 export async function GET(req: NextRequest) {
+  console.log('=== RESUME STRUCTURED API CALLED ===')
   try {
     const session = await getServerSession(authOptions)
+    console.log('Resume/structured API - Session:', session?.user?.id ? `Authenticated (${session.user.id})` : 'No session')
+    console.log('Resume/structured API - Full session:', JSON.stringify(session, null, 2))
     
     if (!session?.user?.id) {
+      console.log('Resume/structured API - Returning 401: No session or user ID')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -22,11 +26,14 @@ export async function GET(req: NextRequest) {
     })
 
     if (!structuredResume) {
+      console.log('Resume/structured API - No structured resume found for user:', session.user.id)
       return NextResponse.json(
         { error: 'No structured resume found' },
         { status: 404 }
       )
     }
+    
+    console.log('Resume/structured API - Found structured resume for user:', session.user.id)
 
     // Parse JSON fields and return structured data
     const resumeData = {

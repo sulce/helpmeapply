@@ -151,6 +151,12 @@ Guidelines:
 - Avoid generic phrases
 - Don't repeat the entire resume
 
+IMPORTANT: 
+- Return ONLY the letter content starting with "Dear Hiring Manager" or similar greeting
+- Do NOT include any address headers, contact information, dates, or business letter formatting
+- Do NOT include placeholders like [Your Address], [Your Email], etc.
+- Just return the actual letter content that would go in the body of a cover letter
+
 Return only the cover letter text, no additional formatting or metadata.
 `
 

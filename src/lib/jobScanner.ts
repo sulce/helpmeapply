@@ -466,27 +466,35 @@ export class JobScanner {
       let customizedResumeUrl = null
       if (profile.autoApplySettings?.customizeResume && profile.resumeUrl) {
         try {
-          const customizationService = ResumeCustomizationService.getInstance()
-          const customizationResult = await customizationService.customizeResume({
-            originalResume: {
-              url: profile.resumeUrl,
-              filename: `${profile.fullName}_resume.pdf`
-            },
-            job: {
-              title: job.title,
-              company: job.company,
-              description: job.description || '',
-              requirements: []
-            },
-            profile: {
-              fullName: profile.fullName,
-              skills: profile.skills || [],
-              jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
-              yearsExperience: profile.yearsExperience || 0
-            }
-          }, profile.userId)
+          // Use the new structured resume customizer instead of the old service
+          const { structuredResumeCustomizer } = await import('./structuredResumeCustomizer')
           
-          customizedResumeUrl = customizationResult.customizedPdfUrl || profile.resumeUrl
+          // Get structured resume data
+          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/resume/structured`, {
+            headers: {
+              'User-ID': profile.userId
+            }
+          })
+          
+          if (response.ok) {
+            const { resumeData } = await response.json()
+            
+            const customizationResult = await structuredResumeCustomizer.customizeResumeForJob(
+              resumeData,
+              {
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                description: job.description || '',
+                requirements: []
+              },
+              profile.userId
+            )
+            
+            customizedResumeUrl = customizationResult.customizedPdfUrl
+          } else {
+            throw new Error('No structured resume data available')
+          }
           console.log(`Resume customized successfully for: ${job.title} at ${job.company}`)
         } catch (error) {
           console.error('Error customizing resume:', error)

@@ -15,6 +15,7 @@ const jobsQuerySchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    console.log('Jobs API - Session:', session?.user?.id ? `Authenticated (${session.user.id})` : 'No session')
     
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -34,9 +35,6 @@ export async function GET(req: NextRequest) {
 
     const validatedParams = jobsQuerySchema.parse(queryParams)
 
-    // Build where clause - show jobs relevant to current user
-    console.log('Jobs API - User ID from session:', session.user.id)
-    
     // Get job IDs from user's notifications and application reviews
     const [userNotifications, userApplicationReviews] = await Promise.all([
       prisma.jobNotification.findMany({
@@ -56,10 +54,6 @@ export async function GET(req: NextRequest) {
     
     // Remove duplicates
     const uniqueJobIds = [...new Set(jobIds)]
-    
-    console.log('Jobs API - Job IDs from notifications:', userNotifications.length)
-    console.log('Jobs API - Job IDs from reviews:', userApplicationReviews.length)
-    console.log('Jobs API - Unique job IDs:', uniqueJobIds.length)
     
     // If no jobs found for user, return empty results
     if (uniqueJobIds.length === 0) {
@@ -81,8 +75,6 @@ export async function GET(req: NextRequest) {
     const where: any = {
       id: { in: uniqueJobIds }
     }
-    
-    console.log('Jobs API - Query where clause:', JSON.stringify(where, null, 2))
     if (validatedParams.source) {
       where.source = validatedParams.source
     }
@@ -108,11 +100,9 @@ export async function GET(req: NextRequest) {
           jobNotifications: {
             where: { userId: session.user.id },
             select: { 
-              id: true, 
-              userId: true, 
+              id: true,
               status: true, 
               customizedResume: true,
-              coverLetter: true,
               matchScore: true 
             }
           }
@@ -121,47 +111,8 @@ export async function GET(req: NextRequest) {
       prisma.job.count({ where })
     ])
 
-    console.log('Jobs API - Found jobs:', jobs.length)
-    console.log('Jobs API - Total count:', totalCount)
-    
-    // Debug: Check what notifications exist for this user
-    const allNotifications = await prisma.jobNotification.findMany({
-      where: { userId: session.user.id },
-      include: { job: { select: { id: true, title: true, company: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    })
-    console.log('Jobs API - User notifications count:', allNotifications.length)
-    console.log('Jobs API - Recent notifications:', allNotifications.map(n => ({
-      id: n.id,
-      jobId: n.jobId,
-      userId: n.userId,
-      jobTitle: n.job?.title,
-      company: n.job?.company
-    })))
-    
-    // Debug: Check if the jobs referenced in notifications actually exist
-    const notificationJobIds = allNotifications.map(n => n.jobId)
-    const existingJobs = await prisma.job.findMany({
-      where: { id: { in: notificationJobIds } },
-      select: { id: true, title: true, company: true }
-    })
-    console.log('Jobs API - Jobs referenced in notifications:', notificationJobIds.length)
-    console.log('Jobs API - Jobs that actually exist:', existingJobs.length)
-    console.log('Jobs API - Existing jobs:', existingJobs)
-    
-    console.log('Jobs API - Sample jobs with notifications:', jobs.slice(0, 2).map(job => ({
-      id: job.id,
-      title: job.title,
-      company: job.company,
-      createdAt: job.createdAt,
-      notifications: job.jobNotifications
-    })))
-    
-    // Debug: Log the full notification data
-    if (jobs.length > 0 && jobs[0].jobNotifications?.length > 0) {
-      console.log('Jobs API - Full notification data for first job:', JSON.stringify(jobs[0].jobNotifications[0], null, 2))
-    }
+    // Log basic performance info only
+    console.log(`Jobs API - Fetched ${jobs.length}/${totalCount} jobs for user ${session.user.id}`)
 
     const totalPages = Math.ceil(totalCount / limit)
 

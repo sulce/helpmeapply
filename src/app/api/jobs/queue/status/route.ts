@@ -61,36 +61,35 @@ export async function GET() {
       }
     })
 
-    // Get user's job scanning stats
+    // Get user's job scanning stats with optimized parallel queries
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const applicationsToday = await prisma.application.count({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: today },
-      },
-    })
-
-    const totalApplications = await prisma.application.count({
-      where: {
-        userId: session.user.id,
-      },
-    })
-
-    const pendingNotifications = await prisma.jobNotification.count({
-      where: {
-        userId: session.user.id,
-        status: 'PENDING',
-      },
-    })
-
-    const pendingReviews = await prisma.applicationReview.count({
-      where: {
-        userId: session.user.id,
-        status: 'PENDING',
-      },
-    })
+    const [applicationsToday, totalApplications, pendingNotifications, pendingReviews] = await Promise.all([
+      prisma.application.count({
+        where: {
+          userId: session.user.id,
+          createdAt: { gte: today },
+        },
+      }),
+      prisma.application.count({
+        where: {
+          userId: session.user.id,
+        },
+      }),
+      prisma.jobNotification.count({
+        where: {
+          userId: session.user.id,
+          status: 'PENDING',
+        },
+      }),
+      prisma.applicationReview.count({
+        where: {
+          userId: session.user.id,
+          status: 'PENDING',
+        },
+      })
+    ])
 
     return NextResponse.json({
       success: true,

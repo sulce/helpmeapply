@@ -283,9 +283,41 @@ export class JobNotificationService {
   }
 
   private async customizeResumeForJob(profile: any, job: any, matchAnalysis: any): Promise<string | null> {
-    // This would implement resume customization logic
-    // For now, return a placeholder indicating customization is ready
-    return `Resume customized for ${job.title} at ${job.company} (${Math.round(matchAnalysis.matchScore * 100)}% match)`
+    try {
+      // Use the new structured resume customizer
+      const { structuredResumeCustomizer } = await import('./structuredResumeCustomizer')
+      
+      // Get structured resume data
+      const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/resume/structured`, {
+        headers: {
+          'User-ID': profile.userId
+        }
+      })
+      
+      if (response.ok) {
+        const { resumeData } = await response.json()
+        
+        const customizationResult = await structuredResumeCustomizer.customizeResumeForJob(
+          resumeData,
+          {
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            description: job.description || '',
+            requirements: []
+          },
+          profile.userId
+        )
+        
+        return customizationResult.customizedPdfUrl
+      } else {
+        console.warn('No structured resume data available for customization')
+        return null
+      }
+    } catch (error) {
+      console.error('Resume customization failed:', error)
+      return null
+    }
   }
 
   private async generateApplicationAnswers(job: any, profile: any): Promise<Record<string, any>> {

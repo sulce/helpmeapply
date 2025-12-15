@@ -14,13 +14,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { resumeData, userId } = await req.json()
+    const { resumeData, userId, forceRegenerate } = await req.json()
 
     console.log('PDF Generation Request:', {
       hasResumeData: !!resumeData,
       userId,
+      forceRegenerate,
       resumeDataKeys: resumeData ? Object.keys(resumeData) : 'none',
-      contactInfo: resumeData?.contactInfo
+      contactInfo: resumeData?.contactInfo,
+      hasExistingPdfUrl: !!resumeData?.lastPdfUrl
     })
 
     if (!resumeData) {
@@ -37,8 +39,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Ensure we don't use any cached/existing PDF URLs when force regenerating
+    const cleanResumeData = forceRegenerate ? 
+      { ...resumeData, lastPdfUrl: undefined } : 
+      resumeData
+
+    console.log('Generating PDF with clean data:', {
+      forceRegenerate,
+      removedLastPdfUrl: forceRegenerate && !!resumeData.lastPdfUrl
+    })
+
     // Generate PDF from structured data
-    const pdfUrl = await generateStructuredResumePDF(resumeData, session.user.id)
+    const pdfUrl = await generateStructuredResumePDF(cleanResumeData, session.user.id)
 
     return NextResponse.json({
       success: true,

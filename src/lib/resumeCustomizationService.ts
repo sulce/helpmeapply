@@ -48,26 +48,24 @@ export class ResumeCustomizationService {
 
   async customizeResume(request: ResumeCustomizationRequest, userId?: string): Promise<CustomizedResume> {
     try {
-      // Extract text from the original resume document
-      let extractedDocument: ExtractedDocument | null = null
-      let originalText = request.originalResume.content || ''
-
-      if (request.originalResume.url && !request.originalResume.content) {
-        console.log('Extracting text from resume document:', request.originalResume.url)
+      // Try to get structured resume data first (from resume builder)
+      let structuredResumeData: any = null
+      
+      if (userId) {
         try {
-          extractedDocument = await documentExtractor.extractFromUrl(request.originalResume.url)
-          originalText = extractedDocument.text
-          console.log('Successfully extracted text:', originalText.length, 'characters')
-          
-          // Additional validation for extracted content
-          if (originalText.length < 50 || this.isTextCorrupted(originalText)) {
-            throw new Error('Extracted text appears corrupted or too short')
+          // Fetch structured resume data from API
+          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/resume/structured`, {
+            headers: {
+              'User-ID': userId
+            }
+          })
+          if (response.ok) {
+            const data = await response.json()
+            structuredResumeData = data.resumeData
+            console.log('Using structured resume data for customization')
           }
         } catch (error) {
-          console.warn('Failed to extract text from document:', error)
-          // Fall back to generating a professional template based on user profile
-          originalText = this.generateFallbackResumeContent(request.profile, request.job)
-          extractedDocument = null
+          console.log('No structured resume data available, falling back to profile data')
         }
       }
 
@@ -77,24 +75,13 @@ export class ResumeCustomizationService {
       // Get user's relevant skills
       const relevantSkills = this.findRelevantSkills(request.profile.skills, jobRequirements)
       
-      // Generate customization strategy with original resume content
-      const customizationStrategy = this.createCustomizationStrategy(
-        request.job,
+      // Generate truly customized resume content
+      const customizedContent = this.generateCustomizedResumeContent(
         request.profile,
+        request.job,
         relevantSkills,
         jobRequirements,
-        originalText,
-        extractedDocument?.sections
-      )
-
-      // Apply customizations
-      const customizedContent = await this.applyCustomizations(
-        {
-          ...request.originalResume,
-          content: originalText,
-        },
-        customizationStrategy,
-        extractedDocument
+        structuredResumeData
       )
 
       // Generate PDF from customized content
@@ -102,20 +89,11 @@ export class ResumeCustomizationService {
       try {
         const pdfGenerator = PDFGenerator.getInstance()
         
-        // Parse customized content into proper CV sections
-        const sections = this.parseResumeIntoSections(customizedContent, extractedDocument?.sections)
+        const resumeTitle = `${request.profile.fullName} - Customized Resume for ${request.job.title} at ${request.job.company}`
         
-        customizedPdfUrl = await pdfGenerator.generateResumePDF(
+        customizedPdfUrl = await pdfGenerator.generateSimplePDF(
           customizedContent,
-          {
-            jobTitle: request.job.title,
-            company: request.job.company,
-            candidateName: request.profile.fullName,
-            sections,
-            customizationNotes: customizationStrategy.notes,
-            keywordMatches: customizationStrategy.keywordMatches,
-            suggestedImprovements: customizationStrategy.improvements,
-          },
+          resumeTitle,
           userId || 'unknown-user'
         )
         
@@ -127,11 +105,11 @@ export class ResumeCustomizationService {
 
       return {
         customizedContent,
-        customizationNotes: customizationStrategy.notes,
-        keywordMatches: customizationStrategy.keywordMatches,
-        suggestedImprovements: customizationStrategy.improvements,
-        originalText,
-        extractedSections: extractedDocument?.sections,
+        customizationNotes: [`Resume customized for ${request.job.title} position`, `Emphasized skills: ${relevantSkills.slice(0, 5).map(s => s.skill).join(', ')}`],
+        keywordMatches: jobRequirements,
+        suggestedImprovements: [],
+        originalText: 'Generated from profile data',
+        extractedSections: undefined,
         customizedPdfUrl,
       }
     } catch (error) {
@@ -411,6 +389,140 @@ export class ResumeCustomizationService {
     }
 
     return enhancedContent
+  }
+
+  private generateCustomizedResumeContent(
+    profile: ResumeCustomizationRequest['profile'],
+    job: ResumeCustomizationRequest['job'],
+    relevantSkills: Array<{ skill: string; relevance: number; proficiency: string }>,
+    jobRequirements: string[],
+    structuredResumeData?: any
+  ): string {
+    const sections: string[] = []
+
+    // Header section
+    sections.push(`${profile.fullName}`)
+    sections.push('') // Empty line
+
+    // Professional summary customized for the job
+    sections.push('PROFESSIONAL SUMMARY')
+    sections.push('') 
+    const summaryText = this.generateCustomizedSummary(profile, job, relevantSkills)
+    sections.push(summaryText)
+    sections.push('')
+
+    // Skills section - prioritize job-relevant skills
+    sections.push('TECHNICAL SKILLS')
+    sections.push('')
+    const prioritizedSkills = this.prioritizeSkillsForJob(profile.skills, relevantSkills, jobRequirements)
+    sections.push(prioritizedSkills)
+    sections.push('')
+
+    // Experience section - use structured data if available
+    if (structuredResumeData?.experience?.length > 0) {
+      sections.push('PROFESSIONAL EXPERIENCE')
+      sections.push('')
+      
+      for (const exp of structuredResumeData.experience) {
+        sections.push(`${exp.jobTitle} | ${exp.company}`)
+        if (exp.startDate) {
+          const endDate = exp.current ? 'Present' : exp.endDate || 'Present'
+          sections.push(`${exp.startDate} - ${endDate}`)
+        }
+        sections.push('')
+        
+        // Customize achievements to highlight job-relevant skills
+        if (exp.achievements?.length > 0) {
+          const customizedAchievements = this.customizeAchievements(exp.achievements, jobRequirements)
+          customizedAchievements.forEach(achievement => {
+            sections.push(`• ${achievement}`)
+          })
+        }
+        sections.push('')
+      }
+    } else {
+      // Fallback experience section
+      sections.push('PROFESSIONAL EXPERIENCE')
+      sections.push('')
+      sections.push(`${profile.yearsExperience || 'Multiple'} years of experience in ${profile.jobTitlePrefs[0] || 'software development'}`)
+      sections.push(`Specialized in: ${relevantSkills.slice(0, 5).map(s => s.skill).join(', ')}`)
+      sections.push('')
+    }
+
+    // Education section if available
+    if (structuredResumeData?.education?.length > 0) {
+      sections.push('EDUCATION')
+      sections.push('')
+      
+      for (const edu of structuredResumeData.education) {
+        sections.push(`${edu.degree} | ${edu.institution}`)
+        if (edu.graduationYear) {
+          sections.push(`Graduated: ${edu.graduationYear}`)
+        }
+        sections.push('')
+      }
+    }
+
+    return sections.join('\n')
+  }
+
+  private generateCustomizedSummary(
+    profile: ResumeCustomizationRequest['profile'],
+    job: ResumeCustomizationRequest['job'],
+    relevantSkills: Array<{ skill: string; relevance: number; proficiency: string }>
+  ): string {
+    const experience = profile.yearsExperience || 'experienced'
+    const mainSkills = relevantSkills.slice(0, 3).map(s => s.skill).join(', ')
+    const jobTitle = job.title
+    
+    return `${experience === 'experienced' ? 'Experienced' : experience + '+ years'} ${profile.jobTitlePrefs[0] || 'software professional'} with expertise in ${mainSkills}. Proven track record in delivering high-quality solutions for ${job.company}-type organizations. Seeking to contribute technical expertise and leadership skills to the ${jobTitle} position.`
+  }
+
+  private prioritizeSkillsForJob(
+    userSkills: ResumeCustomizationRequest['profile']['skills'],
+    relevantSkills: Array<{ skill: string; relevance: number; proficiency: string }>,
+    jobRequirements: string[]
+  ): string {
+    // Start with job-relevant skills
+    const prioritizedSkillNames = new Set<string>()
+    const skillLines: string[] = []
+
+    // Add relevant skills first
+    relevantSkills.forEach(rs => {
+      prioritizedSkillNames.add(rs.skill.toLowerCase())
+      skillLines.push(`• ${rs.skill} (${rs.proficiency})`)
+    })
+
+    // Add other user skills that weren't already included
+    userSkills.forEach(skill => {
+      const skillName = skill.name.toLowerCase()
+      if (!prioritizedSkillNames.has(skillName)) {
+        skillLines.push(`• ${skill.name} (${skill.proficiency})`)
+      }
+    })
+
+    return skillLines.slice(0, 12).join('\n') // Limit to 12 skills
+  }
+
+  private customizeAchievements(achievements: string[], jobRequirements: string[]): string[] {
+    // Prioritize achievements that mention job requirements
+    const prioritized: string[] = []
+    const others: string[] = []
+
+    achievements.forEach(achievement => {
+      const hasRelevantKeyword = jobRequirements.some(req => 
+        achievement.toLowerCase().includes(req.toLowerCase())
+      )
+      
+      if (hasRelevantKeyword) {
+        prioritized.push(achievement)
+      } else {
+        others.push(achievement)
+      }
+    })
+
+    // Return prioritized achievements first, then others
+    return [...prioritized, ...others].slice(0, 6) // Limit to 6 achievements total
   }
 
   async generateResumeVariants(

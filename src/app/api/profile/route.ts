@@ -18,17 +18,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { isDraft, ...profileData } = body
     
-    console.log('Profile API - isDraft:', isDraft)
-    console.log('Profile API - profileData:', JSON.stringify(profileData, null, 2))
-    
     // Use appropriate schema based on whether this is a draft or final save
     const schema = isDraft ? profileDraftSchema : profileSchema
-    console.log('Profile API - Using schema:', isDraft ? 'profileDraftSchema' : 'profileSchema')
     
     let data
     try {
       data = schema.parse(profileData)
-      console.log('Profile API - Validation successful, parsed data:', JSON.stringify(data, null, 2))
     } catch (validationError) {
       console.error('Profile API - Validation failed:', validationError)
       throw validationError

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { structuredResumeCustomizer } from '@/lib/structuredResumeCustomizer'
+import { generateCoverLetter } from '@/lib/openai'
 import { z } from 'zod'
 
 const applyJobSchema = z.object({
@@ -16,7 +17,7 @@ const applyJobSchema = z.object({
       linkedin: z.string().optional(),
       website: z.string().optional()
     }),
-    professionalSummary: z.string().optional().default(''),
+    summary: z.string().optional().default(''),
     experience: z.array(z.any()).default([]),
     education: z.array(z.any()).default([]),
     skills: z.array(z.any()).default([]),
@@ -29,8 +30,10 @@ const applyJobSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  console.log('=== APPLY WITH RESUME API CALLED ===')
   try {
     const session = await getServerSession(authOptions)
+    console.log('Apply API - Session:', session?.user?.id ? `Authenticated (${session.user.id})` : 'No session')
     
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -41,6 +44,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const { jobId, resumeData, coverLetter, customizeResume } = applyJobSchema.parse(body)
+    
+    console.log('=== RESUME DATA DEBUG ===')
+    console.log('Resume Data:', JSON.stringify(resumeData, null, 2))
+    console.log('Experience length:', resumeData.experience?.length)
+    console.log('Skills length:', resumeData.skills?.length)
+    console.log('Education length:', resumeData.education?.length)
 
     // Get job details
     const job = await prisma.job.findUnique({
@@ -58,6 +67,43 @@ export async function POST(req: NextRequest) {
     let customizationNotes: string[] = []
     let keywordMatches: string[] = []
     let matchScore = 0
+    let finalCoverLetter = coverLetter || ''
+
+    // Generate cover letter if none provided
+    if (!finalCoverLetter || finalCoverLetter.trim().length === 0) {
+      try {
+        finalCoverLetter = await generateCoverLetter({
+          profile: {
+            fullName: resumeData.contactInfo.fullName,
+            skills: resumeData.skills.map((skill: any) => ({
+              name: skill.name,
+              proficiency: skill.proficiency || 'Intermediate'
+            })),
+            jobTitlePrefs: ['Software Developer'], // Default
+            yearsExperience: resumeData.experience?.length || 0
+          },
+          job: {
+            title: job.title,
+            company: job.company,
+            description: job.description || '',
+            requirements: []
+          }
+        })
+        console.log('Generated cover letter for job application')
+      } catch (error) {
+        console.error('Failed to generate cover letter:', error)
+        finalCoverLetter = `Dear Hiring Manager,
+
+I am writing to express my interest in the ${job.title} position at ${job.company}. With my background in software development and proven track record of delivering high-quality solutions, I am confident I would be a valuable addition to your team.
+
+My experience and skills align well with the requirements of this role, and I am excited about the opportunity to contribute to ${job.company}'s continued success.
+
+Thank you for considering my application. I look forward to discussing how my skills and experience can benefit your team.
+
+Sincerely,
+${resumeData.contactInfo.fullName}`
+      }
+    }
 
     if (customizeResume) {
       // Customize resume for this specific job
@@ -83,6 +129,12 @@ export async function POST(req: NextRequest) {
       finalResumeUrl = await generateStructuredResumePDF(resumeData, session.user.id)
     }
 
+    // Mark job as applied
+    await prisma.job.update({
+      where: { id: job.id },
+      data: { appliedTo: true }
+    })
+
     // Create application record
     const application = await prisma.application.create({
       data: {
@@ -95,7 +147,7 @@ export async function POST(req: NextRequest) {
         salaryRange: job.salaryRange,
         employmentType: job.employmentType,
         customizedResumeUrl: finalResumeUrl,
-        coverLetter: coverLetter || '',
+        coverLetter: finalCoverLetter,
         status: 'APPLIED',
         source: 'manual',
         matchScore: matchScore,
@@ -136,6 +188,7 @@ export async function POST(req: NextRequest) {
       data: {
         applicationId: application.id,
         resumeUrl: finalResumeUrl,
+        coverLetter: finalCoverLetter,
         matchScore: matchScore,
         customizationNotes: customizationNotes,
         keywordMatches: keywordMatches,

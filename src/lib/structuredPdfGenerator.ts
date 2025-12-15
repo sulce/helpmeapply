@@ -41,7 +41,8 @@ interface Skill {
 
 interface ResumeData {
   contactInfo: ContactInfo
-  professionalSummary: string
+  professionalSummary?: string
+  summary?: string  // Alternative field name for compatibility
   experience: Experience[]
   education: Education[]
   skills: Skill[]
@@ -62,6 +63,14 @@ export async function generateStructuredResumePDF(
   resumeData: ResumeData,
   userId: string
 ): Promise<string> {
+  console.log('=== PDF GENERATOR DEBUG ===')
+  console.log('Resume Data:', JSON.stringify(resumeData, null, 2))
+  console.log('Contact Info:', resumeData.contactInfo)
+  console.log('Experience length:', resumeData.experience?.length)
+  console.log('Experience structure:', resumeData.experience)
+  console.log('Education length:', resumeData.education?.length)
+  console.log('Skills length:', resumeData.skills?.length)
+  console.log('Professional Summary:', resumeData.professionalSummary || resumeData.summary)
   const doc = new jsPDF()
   let yPosition = 20
   const margin = 20
@@ -81,8 +90,8 @@ export async function generateStructuredResumePDF(
     creator: resumeData.contactInfo.fullName
   })
 
-  // Add header with contact info (and photo for EU templates)  
-  yPosition = addRegionalHeader(doc, resumeData, template, yPosition, margin, pageWidth)
+  // Professional header with better formatting
+  yPosition = addProfessionalHeader(doc, resumeData.contactInfo, yPosition, margin, pageWidth)
   
   // Add template-specific styling elements
   yPosition = addTemplateSpecificStyling(doc, template, yPosition, margin, contentWidth)
@@ -96,15 +105,27 @@ export async function generateStructuredResumePDF(
   const sectionsToRender = template.defaultSectionOrder || ['summary', 'experience', 'skills', 'education', 'certifications', 'projects', 'languages']
   
   for (const sectionKey of sectionsToRender) {
-    if (sectionKey === 'summary' && resumeData.professionalSummary.trim()) {
-      const sectionLabel = getSectionLabel(templateRegion as any, 'summary')
-      yPosition = addSection(doc, sectionLabel.toUpperCase(), [resumeData.professionalSummary], yPosition, margin, contentWidth, maxY)
+    if (sectionKey === 'summary') {
+      const summaryText = resumeData.professionalSummary || resumeData.summary || ''
+      if (summaryText.trim()) {
+        const sectionLabel = getSectionLabel(templateRegion as any, 'summary')
+        yPosition = addSection(doc, sectionLabel.toUpperCase(), [summaryText], yPosition, margin, contentWidth, maxY)
+      }
     }
     
-    if (sectionKey === 'experience' && resumeData.experience.length > 0) {
+    if (sectionKey === 'experience') {
       const sectionLabel = getSectionLabel(templateRegion as any, 'experience')
-      const experienceContent = formatExperience(resumeData.experience)
-      yPosition = addSection(doc, sectionLabel.toUpperCase(), experienceContent, yPosition, margin, contentWidth, maxY)
+      
+      if (resumeData.experience && resumeData.experience.length > 0) {
+        console.log('Processing experience section with', resumeData.experience.length, 'entries')
+        const experienceContent = formatExperience(resumeData.experience)
+        console.log('Formatted experience content:', experienceContent)
+        yPosition = addSection(doc, sectionLabel.toUpperCase(), experienceContent, yPosition, margin, contentWidth, maxY)
+      } else {
+        console.log('No experience data available, adding fallback message')
+        const fallbackContent = ['No detailed experience information available.']
+        yPosition = addSection(doc, sectionLabel.toUpperCase(), fallbackContent, yPosition, margin, contentWidth, maxY)
+      }
     }
     
     if (sectionKey === 'skills' && resumeData.skills.length > 0) {
@@ -226,18 +247,18 @@ function addSection(
     yPosition = 20
   }
 
-  // Section title
-  doc.setFontSize(14)
+  // Section title - professional styling
+  doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(51, 51, 51)
+  doc.setTextColor(44, 62, 80) // Professional dark blue-gray
   doc.text(title, margin, yPosition)
   
-  // Add underline
+  // Modern underline with color
   const titleWidth = doc.getTextWidth(title)
-  doc.setLineWidth(0.5)
-  doc.setDrawColor(100, 100, 100)
-  doc.line(margin, yPosition + 1, margin + titleWidth, yPosition + 1)
-  yPosition += 10
+  doc.setLineWidth(1.5)
+  doc.setDrawColor(52, 152, 219) // Professional blue
+  doc.line(margin, yPosition + 2, margin + titleWidth + 5, yPosition + 2)
+  yPosition += 12
 
   // Section content
   doc.setFontSize(10)
@@ -310,27 +331,38 @@ function addJobEntry(
   const parts = text.split(' - ')
   
   if (parts.length >= 2) {
-    // Job title (bold)
+    // Job title (bold and larger)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
+    doc.setTextColor(44, 62, 80) // Professional dark color
     doc.text(parts[0].trim(), margin, yPosition)
+    yPosition += 6
     
-    // Company and date (normal)
+    // Company and date (normal, smaller, gray)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
+    doc.setTextColor(127, 140, 141) // Medium gray
     const companyInfo = parts.slice(1).join(' - ')
-    doc.text(companyInfo, margin, yPosition + 5)
+    doc.text(companyInfo, margin, yPosition)
+    yPosition += 8
     
-    yPosition += 12
+    // Reset colors for content
+    doc.setTextColor(0, 0, 0)
   } else {
     // Fallback for unstructured entries
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
+    doc.setTextColor(44, 62, 80)
     const lines = doc.splitTextToSize(text, contentWidth)
     for (const line of lines) {
       doc.text(line, margin, yPosition)
-      yPosition += 5
+      yPosition += 6
     }
+    doc.setTextColor(0, 0, 0)
   }
 
   doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
   return yPosition
 }
 
@@ -497,6 +529,61 @@ function addPersonalDetailsSection(
     return addSection(doc, 'PERSONAL INFORMATION', details, yPosition, margin, contentWidth, maxY)
   }
   
+  return yPosition
+}
+
+// Professional header with modern design
+function addProfessionalHeader(
+  doc: jsPDF,
+  contactInfo: ContactInfo,
+  yPosition: number,
+  margin: number,
+  pageWidth: number
+): number {
+  // Name - large and bold, left-aligned for modern look
+  doc.setFontSize(28)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(44, 62, 80) // Professional dark blue-gray
+  doc.text(contactInfo.fullName, margin, yPosition)
+  yPosition += 18
+
+  // Professional title/position if available from summary
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(127, 140, 141) // Medium gray
+  
+  // Contact information - modern layout with pipes
+  const contactItems = []
+  if (contactInfo.email) contactItems.push(contactInfo.email)
+  if (contactInfo.phone) contactItems.push(contactInfo.phone)
+  if (contactInfo.address) contactItems.push(contactInfo.address)
+  if (contactInfo.linkedin) contactItems.push(contactInfo.linkedin)
+  if (contactInfo.website) contactItems.push(contactInfo.website)
+
+  if (contactItems.length > 0) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(85, 85, 85) // Darker gray for readability
+    
+    // Create a single line with separators
+    const contactLine = contactItems.join(' | ')
+    doc.text(contactLine, margin, yPosition)
+    yPosition += 8
+  }
+
+  // Modern separator line with gradient effect
+  yPosition += 8
+  doc.setLineWidth(2)
+  doc.setDrawColor(52, 152, 219) // Professional blue
+  doc.line(margin, yPosition, pageWidth - margin, yPosition)
+  
+  // Add a subtle second line
+  doc.setLineWidth(0.5)
+  doc.setDrawColor(189, 195, 199) // Light gray
+  doc.line(margin, yPosition + 2, pageWidth - margin, yPosition + 2)
+  
+  yPosition += 15
+
   return yPosition
 }
 

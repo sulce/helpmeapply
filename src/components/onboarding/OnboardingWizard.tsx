@@ -74,7 +74,7 @@ export function OnboardingWizard({ profile, onComplete, onSkip, onRefresh }: Onb
     },
     {
       id: 'complete',
-      title: "You're All Set!",
+      title: "You&apos;re All Set!",
       description: 'AI is now ready to start finding jobs for you.',
       icon: <CheckCircle className="h-8 w-8 text-green-600" />,
       canSkip: false
@@ -532,7 +532,7 @@ export function OnboardingWizard({ profile, onComplete, onSkip, onRefresh }: Onb
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h4 className="font-medium text-green-800 mb-2">AI Automation Settings</h4>
                 <p className="text-green-700 text-sm mb-3">
-                  We'll apply smart default settings to get you started. You can customize these anytime in your profile.
+                  We&apos;ll apply smart default settings to get you started. You can customize these anytime in your profile.
                 </p>
                 <div className="bg-white border border-green-300 rounded-lg p-3 mt-3">
                   <h5 className="font-medium text-green-800 mb-2">Default Settings:</h5>

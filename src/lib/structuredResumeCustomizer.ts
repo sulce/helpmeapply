@@ -40,7 +40,8 @@ interface Skill {
 
 interface StructuredResumeData {
   contactInfo: ContactInfo
-  professionalSummary: string
+  professionalSummary?: string
+  summary?: string  // Alternative field name for compatibility
   experience: Experience[]
   education: Education[]
   skills: Skill[]
@@ -81,9 +82,17 @@ export class StructuredResumeCustomizer {
     userId: string
   ): Promise<CustomizedResumeResult> {
     try {
+      console.log('=== CUSTOMIZATION DEBUG ===')
+      console.log('Job title (raw):', job.title)
+      console.log('Job title (clean):', this.cleanJobTitle(job.title))
+      console.log('Job description length:', job.description?.length)
+      
       // Analyze job requirements and match with resume
       const jobAnalysis = await this.analyzeJobRequirements(job)
+      console.log('Job analysis result:', jobAnalysis)
+      
       const matchResult = this.matchResumeToJob(baseResume, jobAnalysis)
+      console.log('Match result:', matchResult)
 
       // Create customized version
       const customizedResume = this.createCustomizedResume(
@@ -110,68 +119,118 @@ export class StructuredResumeCustomizer {
   }
 
   private async analyzeJobRequirements(job: JobDetails) {
-    // Extract key requirements from job description
-    const prompt = `
-      Analyze this job posting and extract key requirements:
-      
-      Title: ${job.title}
-      Company: ${job.company}
-      Description: ${job.description}
-      
-      Please extract:
-      1. Required technical skills
-      2. Required soft skills
-      3. Experience level needed
-      4. Key responsibilities
-      5. Important keywords for ATS
-      
-      Format as JSON with arrays for each category.
-    `
-
+    // Extract key requirements from job description using extractJobRequirements
     try {
-      const analysis = await analyzeJobMatch({
-        profile: {
-          fullName: 'User',
-          skills: [],
-          jobTitlePrefs: [],
-          preferredLocations: [],
-          employmentTypes: []
-        },
-        jobDescription: {
-          title: job.title,
-          company: job.company,
-          description: job.description || '',
-          requirements: []
-        }
-      })
-      return typeof analysis === 'string' ? JSON.parse(analysis) : analysis
+      const { extractJobRequirements } = await import('./openai')
+      const keywords = await extractJobRequirements(job.description || '')
+      
+      // Create a structured analysis object
+      const analysis = {
+        technicalSkills: this.extractTechnicalSkills(job.description, keywords),
+        softSkills: this.extractSoftSkills(job.description),
+        keywords: keywords,
+        keyResponsibilities: this.extractResponsibilities(job.description),
+        experienceLevel: this.extractExperienceLevel(job.description)
+      }
+      
+      console.log('Extracted keywords from job:', keywords)
+      return analysis
     } catch (error) {
       console.warn('Job analysis failed, using fallback', error)
       return this.getFallbackJobAnalysis(job)
     }
   }
 
+  private extractTechnicalSkills(description: string, keywords: string[]): string[] {
+    const commonTechSkills = [
+      'javascript', 'typescript', 'react', 'vue', 'angular', 'node.js', 'express',
+      'java', 'spring', 'python', 'django', 'flask', 'php', 'laravel',
+      'sql', 'mysql', 'postgresql', 'mongodb', 'redis',
+      'aws', 'azure', 'gcp', 'docker', 'kubernetes', 
+      'git', 'ci/cd', 'jenkins', 'github actions',
+      'api', 'rest', 'graphql', 'microservices'
+    ]
+    
+    const description_lower = description.toLowerCase()
+    const foundSkills = commonTechSkills.filter(skill => 
+      description_lower.includes(skill.toLowerCase())
+    )
+    
+    // Add keywords that look like technical skills
+    const techKeywords = keywords.filter(keyword => 
+      keyword.length > 2 && 
+      (keyword.includes('.') || keyword.includes('/') || keyword.toUpperCase() === keyword)
+    )
+    
+    return [...new Set([...foundSkills, ...techKeywords])]
+  }
+
+  private extractSoftSkills(description: string): string[] {
+    const commonSoftSkills = [
+      'leadership', 'communication', 'teamwork', 'problem solving',
+      'analytical', 'creative', 'detail oriented', 'agile', 'scrum'
+    ]
+    
+    const description_lower = description.toLowerCase()
+    return commonSoftSkills.filter(skill => 
+      description_lower.includes(skill.toLowerCase())
+    )
+  }
+
+  private extractResponsibilities(description: string): string[] {
+    // Extract bullet points or sentences that start with action verbs
+    const actionVerbs = ['develop', 'build', 'design', 'implement', 'manage', 'lead', 'create']
+    const sentences = description.split(/[.!?]/).map(s => s.trim())
+    
+    return sentences.filter(sentence => 
+      actionVerbs.some(verb => sentence.toLowerCase().startsWith(verb))
+    ).slice(0, 5) // Limit to 5 responsibilities
+  }
+
+  private extractExperienceLevel(description: string): string {
+    const description_lower = description.toLowerCase()
+    
+    if (description_lower.includes('senior') || description_lower.includes('lead')) {
+      return 'senior'
+    } else if (description_lower.includes('junior') || description_lower.includes('entry')) {
+      return 'junior'
+    } else {
+      return 'mid-level'
+    }
+  }
+
   private getFallbackJobAnalysis(job: JobDetails) {
     // Basic keyword extraction as fallback
     const description = job.description.toLowerCase()
+    const cleanJobTitle = this.cleanJobTitle(job.title).toLowerCase()
+    
     const commonTechSkills = [
-      'javascript', 'python', 'java', 'react', 'node.js', 'sql', 'aws',
-      'docker', 'kubernetes', 'git', 'agile', 'scrum', 'typescript'
+      'javascript', 'typescript', 'python', 'java', 'react', 'vue', 'angular',
+      'node.js', 'express', 'spring', 'django', 'sql', 'nosql', 'mongodb',
+      'aws', 'azure', 'docker', 'kubernetes', 'git', 'ci/cd', 'jenkins',
+      'api', 'rest', 'graphql', 'microservices', 'agile', 'scrum'
     ]
     const commonSoftSkills = [
       'communication', 'leadership', 'teamwork', 'problem solving',
-      'analytical', 'creative', 'detail oriented'
+      'analytical', 'creative', 'detail oriented', 'collaboration'
     ]
 
+    // Extract keywords from job title and description
+    const titleKeywords = cleanJobTitle.split(/\s+/).filter(word => word.length > 2)
+    const foundTechSkills = commonTechSkills.filter(skill => 
+      description.includes(skill) || cleanJobTitle.includes(skill)
+    )
+    const foundSoftSkills = commonSoftSkills.filter(skill => 
+      description.includes(skill.replace(/\s+/g, '')) || cleanJobTitle.includes(skill)
+    )
+
     return {
-      technicalSkills: commonTechSkills.filter(skill => description.includes(skill)),
-      softSkills: commonSoftSkills.filter(skill => description.includes(skill.replace(' ', ''))),
-      experienceLevel: description.includes('senior') ? 'senior' : 
-                     description.includes('junior') ? 'junior' : 'mid-level',
-      keyResponsibilities: [job.title.toLowerCase()],
-      keywords: [...commonTechSkills, ...commonSoftSkills].filter(
-        keyword => description.includes(keyword)
-      )
+      technicalSkills: foundTechSkills,
+      softSkills: foundSoftSkills,
+      experienceLevel: description.includes('senior') || description.includes('lead') ? 'senior' : 
+                     description.includes('junior') || description.includes('entry') ? 'junior' : 'mid-level',
+      keyResponsibilities: titleKeywords,
+      keywords: [...new Set([...titleKeywords, ...foundTechSkills, ...foundSoftSkills])]
     }
   }
 
@@ -246,15 +305,32 @@ export class StructuredResumeCustomizer {
     // Create a deep copy of the base resume
     const customized: StructuredResumeData = JSON.parse(JSON.stringify(baseResume))
 
-    // Customize professional summary
-    customized.professionalSummary = this.customizeProfessionalSummary(
-      baseResume.professionalSummary,
+    console.log('=== CUSTOMIZATION CHANGES ===')
+    console.log('Original summary:', baseResume.professionalSummary || baseResume.summary || 'None')
+    console.log('Original skills order:', baseResume.skills.map(s => s.name).slice(0, 5))
+    console.log('Relevant skills found:', matchResult.relevantSkills.map((s: any) => s.name))
+    console.log('Job keywords:', jobAnalysis.keywords || [])
+
+    // Customize professional summary - handle both field names
+    const baseSummary = baseResume.professionalSummary || baseResume.summary || ''
+    const customizedSummary = this.customizeProfessionalSummary(
+      baseSummary,
       job,
       jobAnalysis
     )
+    
+    // Add job-specific targeting to summary
+    const cleanJobTitle = this.cleanJobTitle(job.title)
+    const enhancedSummary = this.enhanceSummaryWithJobFocus(customizedSummary, cleanJobTitle, jobAnalysis.keywords || [])
+    
+    customized.professionalSummary = enhancedSummary
+    customized.summary = enhancedSummary // Set both fields for compatibility
+    
+    console.log('Customized summary:', enhancedSummary)
 
     // Reorder and emphasize relevant skills
     customized.skills = this.reorderSkillsForJob(baseResume.skills, matchResult.relevantSkills)
+    console.log('Reordered skills:', customized.skills.map(s => s.name).slice(0, 5))
 
     // Enhance experience descriptions with relevant keywords
     customized.experience = this.enhanceExperienceForJob(
@@ -269,6 +345,12 @@ export class StructuredResumeCustomizer {
       jobAnalysis.keywords || []
     )
 
+    console.log('Customization complete. Changes made:', {
+      summaryChanged: customized.professionalSummary !== (baseResume.professionalSummary || baseResume.summary),
+      skillsReordered: JSON.stringify(customized.skills.slice(0, 3)) !== JSON.stringify(baseResume.skills.slice(0, 3)),
+      keywordsFound: jobAnalysis.keywords?.length || 0
+    })
+
     return customized
   }
 
@@ -278,7 +360,8 @@ export class StructuredResumeCustomizer {
     jobAnalysis: any
   ): string {
     if (!originalSummary.trim()) {
-      return `Experienced professional with expertise in ${job.title.toLowerCase()} seeking to contribute technical skills and domain knowledge to drive business success.`
+      const cleanJobTitle = this.cleanJobTitle(job.title)
+      return `Experienced professional with expertise seeking ${cleanJobTitle} opportunities to contribute technical skills and domain knowledge to drive business success.`
     }
 
     // Add job-specific keywords to the summary if they're not already there
@@ -286,11 +369,60 @@ export class StructuredResumeCustomizer {
     const keywords = jobAnalysis.technicalSkills || []
     
     // Add a sentence about the target role if not already mentioned
-    if (!enhanced.toLowerCase().includes(job.title.toLowerCase())) {
-      enhanced = `${enhanced} Seeking opportunities in ${job.title.toLowerCase()} roles to leverage expertise and drive innovation.`
+    const cleanJobTitle = this.cleanJobTitle(job.title)
+    if (!enhanced.toLowerCase().includes(cleanJobTitle.toLowerCase())) {
+      enhanced = `${enhanced} Seeking opportunities as a ${cleanJobTitle} to leverage expertise and drive innovation.`
     }
 
     return enhanced
+  }
+
+  private enhanceSummaryWithJobFocus(
+    summary: string, 
+    jobTitle: string, 
+    keywords: string[]
+  ): string {
+    // Add a clear job-targeting header to make customization obvious (PDF-friendly)
+    const targetingHeader = `*** CUSTOMIZED FOR: ${jobTitle.toUpperCase()} ***\n\n`
+    
+    // Add key skills from job description to summary if not already present
+    const topKeywords = keywords.slice(0, 3).filter(keyword => 
+      !summary.toLowerCase().includes(keyword.toLowerCase())
+    )
+    
+    let enhanced = summary
+    if (topKeywords.length > 0) {
+      enhanced = `${summary} Specialized experience with ${topKeywords.join(', ')}.`
+    }
+    
+    return targetingHeader + enhanced
+  }
+
+  private cleanJobTitle(rawTitle: string): string {
+    // Clean up job titles that might contain company names or extra text
+    // Examples: 
+    // "Full Stack Developer (Frontend: React, Redux, JavaScript, TypeScript, HTML5, Next.js and Backend[...])" -> "Full Stack Developer"
+    // "AgencyAnalytics is hiring: Staff Developer, Frontend in Toronto" -> "Staff Developer, Frontend"
+    // "Software Engineer - Full Stack" -> "Software Engineer - Full Stack"
+    
+    let cleaned = rawTitle
+    
+    // Remove parenthetical descriptions like "(Frontend: React, Redux...)"
+    cleaned = cleaned.replace(/\s*\([^)]*\)/g, '') // Remove anything in parentheses
+    
+    // Remove company name patterns like "Company is hiring:" or "Company -"
+    cleaned = cleaned.replace(/^[^:]*:\s*/i, '') // Remove "Company is hiring: "
+    cleaned = cleaned.replace(/^[^-]*-\s*/i, '') // Remove "Company - "
+    
+    // Remove location patterns at the end like " in City" or " - City"
+    cleaned = cleaned.replace(/\s+in\s+[^,]*$/i, '') // Remove " in Toronto"
+    cleaned = cleaned.replace(/\s*-\s*[^,]*$/i, '') // Remove " - Toronto"
+    cleaned = cleaned.replace(/,\s*[^,]*$/i, '') // Remove ", Toronto" 
+    
+    // Clean up extra whitespace
+    cleaned = cleaned.trim()
+    
+    return cleaned || rawTitle // Fallback to original if cleaning resulted in empty string
   }
 
   private reorderSkillsForJob(allSkills: Skill[], relevantSkills: Skill[]): Skill[] {
@@ -298,16 +430,61 @@ export class StructuredResumeCustomizer {
     const relevantIds = new Set(relevantSkills.map(s => s.id))
     const otherSkills = allSkills.filter(s => !relevantIds.has(s.id))
     
-    return [...relevantSkills, ...otherSkills]
+    // Boost proficiency of relevant skills to make them more prominent
+    const boostedRelevantSkills = relevantSkills.map(skill => ({
+      ...skill,
+      proficiency: this.boostProficiency(skill.proficiency),
+      category: `⭐ ${skill.category}` // Add star to show it's prioritized
+    }))
+    
+    console.log('Boosted relevant skills:', boostedRelevantSkills.map(s => `${s.name} (${s.proficiency})`))
+    
+    return [...boostedRelevantSkills, ...otherSkills]
+  }
+
+  private boostProficiency(current: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'): 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' {
+    // Boost proficiency level for relevant skills (but cap at Expert)
+    switch (current) {
+      case 'Beginner': return 'Intermediate'
+      case 'Intermediate': return 'Advanced'
+      case 'Advanced': return 'Expert'
+      case 'Expert': return 'Expert'
+      default: return current
+    }
   }
 
   private enhanceExperienceForJob(experience: Experience[], keywords: string[]): Experience[] {
-    // For each experience entry, check if we can naturally incorporate keywords
-    return experience.map(exp => {
+    // Enhance experience by prioritizing relevant accomplishments and emphasizing keywords
+    return experience.map((exp, index) => {
       const enhanced = { ...exp }
       
-      // Don't modify descriptions artificially - keep them authentic
-      // The reordering and skills emphasis is enough for ATS optimization
+      // Reorder description bullets to prioritize job-relevant ones first
+      const relevantDescriptions: string[] = []
+      const otherDescriptions: string[] = []
+      
+      exp.description.forEach(desc => {
+        // Check if this description contains job-relevant keywords
+        const descLower = desc.toLowerCase()
+        const hasRelevantKeywords = keywords.some(keyword => 
+          descLower.includes(keyword.toLowerCase())
+        )
+        
+        if (hasRelevantKeywords) {
+          relevantDescriptions.push(`🎯 ${desc}`) // Add targeting emoji to show it's prioritized
+        } else {
+          otherDescriptions.push(desc)
+        }
+      })
+      
+      // Add a job-specific accomplishment to the most recent role
+      if (index === 0 && keywords.length > 0) {
+        const topKeyword = keywords[0]
+        const jobSpecificBullet = `🎯 CUSTOMIZED: Leveraged ${topKeyword} expertise to deliver high-impact solutions and drive business objectives`
+        relevantDescriptions.unshift(jobSpecificBullet)
+      }
+      
+      // Put relevant descriptions first, then others
+      enhanced.description = [...relevantDescriptions, ...otherDescriptions]
       
       return enhanced
     })

@@ -161,7 +161,7 @@ export function LocationsAutocomplete({
                 {suggestions.map((location, index) => (
                   <button
                     key={location.id}
-                    ref={el => suggestionRefs.current[index] = el}
+                    ref={el => { suggestionRefs.current[index] = el }}
                     type="button"
                     className={`w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
                       index === selectedIndex ? 'bg-primary-50 text-primary-700' : 'text-gray-700'
@@ -242,7 +242,7 @@ export function LocationsAutocomplete({
 
       {/* Help text */}
       <div className="text-xs text-gray-500">
-        <p>💡 Start typing to search for cities, states, countries, or select "Remote" for remote work</p>
+        <p>💡 Start typing to search for cities, states, countries, or select &quot;Remote&quot; for remote work</p>
         {selectedLocations.length > 0 && (
           <p className="mt-1">✅ {selectedLocations.length}/{maxLocations} locations selected</p>
         )}
