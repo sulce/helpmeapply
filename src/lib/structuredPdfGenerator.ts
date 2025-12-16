@@ -400,8 +400,16 @@ function formatEducation(education: Education[]): string[] {
   for (const edu of education) {
     if (!edu.degree.trim() || !edu.institution.trim()) continue
     
-    // Degree and institution line
-    const eduLine = `${edu.degree} - ${edu.institution}${edu.location ? ', ' + edu.location : ''} (${formatDate(edu.graduationDate)})`
+    // Degree and institution line - only add location if it exists and is not empty
+    let eduLine = `${edu.degree} - ${edu.institution}`
+    if (edu.location && edu.location.trim()) {
+      eduLine += `, ${edu.location}`
+    }
+    // Only add graduation date if it exists
+    const formattedDate = formatDate(edu.graduationDate)
+    if (formattedDate) {
+      eduLine += ` (${formattedDate})`
+    }
     content.push(eduLine)
     
     // GPA if provided
@@ -540,19 +548,15 @@ function addProfessionalHeader(
   margin: number,
   pageWidth: number
 ): number {
-  // Name - large and bold, left-aligned for modern look
+  // Name - large and bold, centered
   doc.setFontSize(28)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(44, 62, 80) // Professional dark blue-gray
-  doc.text(contactInfo.fullName, margin, yPosition)
+  const nameWidth = doc.getTextWidth(contactInfo.fullName)
+  doc.text(contactInfo.fullName, (pageWidth - nameWidth) / 2, yPosition)
   yPosition += 18
 
-  // Professional title/position if available from summary
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(127, 140, 141) // Medium gray
-  
-  // Contact information - modern layout with pipes
+  // Contact information - centered layout with pipes
   const contactItems = []
   if (contactInfo.email) contactItems.push(contactInfo.email)
   if (contactInfo.phone) contactItems.push(contactInfo.phone)
@@ -565,9 +569,10 @@ function addProfessionalHeader(
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(85, 85, 85) // Darker gray for readability
     
-    // Create a single line with separators
+    // Create a single line with separators and center it
     const contactLine = contactItems.join(' | ')
-    doc.text(contactLine, margin, yPosition)
+    const contactWidth = doc.getTextWidth(contactLine)
+    doc.text(contactLine, (pageWidth - contactWidth) / 2, yPosition)
     yPosition += 8
   }
 

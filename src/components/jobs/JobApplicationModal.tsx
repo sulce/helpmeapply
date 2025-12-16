@@ -124,7 +124,7 @@ export function JobApplicationModal({
 
   // Generate actual customized resume when review modal opens
   const generateCustomizedResume = async () => {
-    if (!job || !userResumeData || !customizeResume || isCustomizingPreview || customizedResumeUrl) return
+    if (!job || !userResumeData || !customizeResume || isCustomizingPreview) return
     
     setIsCustomizingPreview(true)
     try {
@@ -133,9 +133,17 @@ export function JobApplicationModal({
       console.log('User has resume data:', !!userResumeData)
       console.log('Resume data keys:', Object.keys(userResumeData || {}))
       
+      // Add timeout to prevent long waits
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        console.log('Customization timed out after 60 seconds')
+      }, 60000) // 60 second timeout (increased)
+      
       const response = await fetch('/api/jobs/customize-resume-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           jobId: job.id,
           jobTitle: job.title,
@@ -144,6 +152,8 @@ export function JobApplicationModal({
           resumeData: userResumeData
         })
       })
+      
+      clearTimeout(timeoutId)
       
       console.log('Customization API response status:', response.status)
       
@@ -174,8 +184,14 @@ export function JobApplicationModal({
         const errorText = await response.text()
         console.error('Customization API failed:', response.status, errorText)
       }
-    } catch (error) {
-      console.error('Preview customization failed:', error)
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.error('Customization timed out')
+        alert('Resume customization is taking too long. Using original resume instead.')
+      } else {
+        console.error('Preview customization failed:', error)
+        alert('Failed to customize resume. Using original resume instead.')
+      }
     } finally {
       setIsCustomizingPreview(false)
     }
@@ -191,24 +207,20 @@ export function JobApplicationModal({
     console.log('userResumeData exists:', !!userResumeData)
     
     if (showReview && customizeResume && job && userResumeData) {
-      // Check if the existing URL is just the uploaded PDF (contains timestamp pattern)
-      const isUploadedPdf = customizedResumeUrl && /\d{13}-/.test(customizedResumeUrl)
+      // Always clear any existing URL when review modal opens to force fresh customization
+      console.log('REVIEW MODAL OPENED - Forcing fresh customization')
       
-      if (!customizedResumeUrl || isUploadedPdf) {
-        console.log('GENERATING CUSTOMIZATION - Reason:', !customizedResumeUrl ? 'No URL' : 'Uploaded PDF detected')
-        
-        // Clear the uploaded PDF URL if it exists
-        if (isUploadedPdf) {
-          console.log('Clearing uploaded PDF URL:', customizedResumeUrl)
-          setCustomizedResumeUrl(null)
-        }
-        
-        console.log('Job:', job.title)
+      if (customizedResumeUrl) {
+        console.log('Clearing existing URL to force fresh generation:', customizedResumeUrl)
+        setCustomizedResumeUrl(null)
+      }
+      
+      // Small delay to ensure state is cleared
+      setTimeout(() => {
+        console.log('Starting fresh customization for job:', job.title)
         console.log('UserResumeData keys:', Object.keys(userResumeData || {}))
         generateCustomizedResume()
-      } else {
-        console.log('Using existing customized resume:', customizedResumeUrl)
-      }
+      }, 100)
     } else {
       console.log('CONDITIONS NOT MET for customization')
       if (!showReview) console.log('- showReview is false')
@@ -216,7 +228,7 @@ export function JobApplicationModal({
       if (!job) console.log('- job is null')
       if (!userResumeData) console.log('- userResumeData is null')
     }
-  }, [showReview, customizeResume, job, userResumeData])
+  }, [showReview]) // Only depend on showReview to always trigger when modal opens
 
   if (!isOpen || !job) return null
 
@@ -579,6 +591,11 @@ export function JobApplicationModal({
                   </div>
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-lg space-y-4 max-h-96 overflow-y-auto">
+                    {!userResumeData && (
+                      <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
+                        <p className="text-yellow-800 text-sm font-medium">No resume data found. Please complete your profile first.</p>
+                      </div>
+                    )}
                     {/* Contact Info */}
                     <div>
                       <h4 className="font-semibold text-blue-900">Contact Information</h4>
