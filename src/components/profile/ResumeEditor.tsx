@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SkillsAutocomplete } from '@/components/ui/SkillsAutocomplete'
@@ -982,9 +983,11 @@ function TemplateSelectionSection({
           <div className="flex items-start space-x-4">
             {photoUrl ? (
               <div className="relative">
-                <img
+                <Image
                   src={photoUrl}
                   alt="Profile"
+                  width={96}
+                  height={96}
                   className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
                 />
                 <button

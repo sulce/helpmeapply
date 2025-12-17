@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       success: false,
       platform: job.source || 'unknown',
       method: 'redirect',
-      redirectUrl: job.url,
+      redirectUrl: job.url || undefined,
       error: 'Automation feature temporarily disabled - using manual application'
     }
 
