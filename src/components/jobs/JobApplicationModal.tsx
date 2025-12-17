@@ -246,26 +246,28 @@ export function JobApplicationModal({
     }
 
     setIsApplying(true)
-    console.log('Setting isApplying to true, starting fetch...')
+    console.log('Setting isApplying to true, attempting automated application...')
     
     try {
-      console.log('Making fetch request to /api/jobs/apply-with-resume')
+      console.log('Making fetch request to /api/jobs/apply-automated')
       console.log('Request payload:', {
         jobId: job.id,
         resumeData: userResumeData,
+        customizedResumeUrl: customizeResume ? customizedResumeUrl : null,
         coverLetter,
-        customizeResume
+        useAutomation: true
       })
       
-      const response = await fetch('/api/jobs/apply-with-resume', {
+      const response = await fetch('/api/jobs/apply-automated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           jobId: job.id,
           resumeData: userResumeData,
+          customizedResumeUrl: customizeResume ? customizedResumeUrl : null,
           coverLetter,
-          customizeResume
+          useAutomation: true
         })
       })
 
@@ -275,16 +277,49 @@ export function JobApplicationModal({
       const result = await response.json()
       console.log('Response data:', result)
       
-      if (response.ok) {
-        console.log('Application successful, setting result')
-        setApplicationResult(result.data)
+      if (response.ok && result.success && result.method === 'automated') {
+        // Successful automation
+        console.log('✅ Automated application successful!')
+        setApplicationResult({
+          ...result.data,
+          method: 'automated',
+          platform: result.platform
+        })
+        
+        alert(`🎉 Application submitted successfully via automation!\nConfirmation: ${result.data.confirmationId || 'N/A'}`)
+        
+      } else if (result.redirectUrl) {
+        // Automation failed, redirect to manual application
+        console.log('⚠️ Automation failed, redirecting to manual application')
+        
+        // Show user the redirect option
+        const shouldRedirect = confirm(
+          `Automated application wasn't available for this job.\n\nWould you like to open the job application page to apply manually?\n\nYour customized resume and cover letter will be available for download.`
+        )
+        
+        if (shouldRedirect) {
+          // Open job application in new tab
+          window.open(result.redirectUrl, '_blank')
+          
+          // Mark as attempted (but not completed)
+          setApplicationResult({
+            method: 'redirect',
+            platform: result.platform,
+            message: 'Redirected to manual application',
+            redirectUrl: result.redirectUrl,
+            resumeUrl: customizedResumeUrl,
+            coverLetter: coverLetter
+          })
+        }
+        
       } else {
-        console.log('Application failed, throwing error')
+        console.log('Application failed completely')
         throw new Error(result.error || 'Application failed')
       }
+      
     } catch (error) {
       console.error('Application error:', error)
-      alert('Failed to submit application')
+      alert(`Failed to submit application: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsApplying(false)
     }
@@ -314,11 +349,93 @@ export function JobApplicationModal({
             </div>
 
             <div className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-green-800 font-medium">{applicationResult.message}</p>
-                <p className="text-green-700 text-sm mt-1">
-                  Applied on {new Date(applicationResult.appliedAt).toLocaleDateString()}
-                </p>
+              {/* Application Method Indicator */}
+              <div className={`p-4 rounded-lg ${
+                applicationResult.method === 'automated' 
+                  ? 'bg-green-50 border border-green-200' 
+                  : applicationResult.method === 'redirect'
+                  ? 'bg-blue-50 border border-blue-200'
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    {applicationResult.method === 'automated' ? (
+                      <>
+                        <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                          <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-green-900">Automated Application</h3>
+                          <p className="text-green-700 text-sm">Successfully submitted via automation</p>
+                        </div>
+                      </>
+                    ) : applicationResult.method === 'redirect' ? (
+                      <>
+                        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900">Manual Application</h3>
+                          <p className="text-blue-700 text-sm">Redirected to job board for manual completion</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                          <CheckCircle className="h-5 w-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Application Submitted</h3>
+                          <p className="text-gray-700 text-sm">Application has been processed</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {applicationResult.platform && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      applicationResult.platform === 'indeed'
+                        ? 'bg-blue-100 text-blue-800'
+                        : applicationResult.platform === 'greenhouse'
+                        ? 'bg-green-100 text-green-800'
+                        : applicationResult.platform === 'linkedin'
+                        ? 'bg-indigo-100 text-indigo-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {applicationResult.platform}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-gray-800 font-medium">{applicationResult.message}</p>
+                  {applicationResult.confirmationId && (
+                    <p className="text-gray-600 text-sm mt-1">
+                      Confirmation ID: <span className="font-mono">{applicationResult.confirmationId}</span>
+                    </p>
+                  )}
+                  <p className="text-gray-600 text-sm mt-1">
+                    Applied on {new Date(applicationResult.appliedAt || Date.now()).toLocaleDateString()}
+                  </p>
+                </div>
+                
+                {/* Redirect URL for manual applications */}
+                {applicationResult.method === 'redirect' && applicationResult.redirectUrl && (
+                  <div className="mt-3">
+                    <Button
+                      onClick={() => window.open(applicationResult.redirectUrl, '_blank')}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Continue Application on {applicationResult.platform}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {applicationResult.matchScore && (

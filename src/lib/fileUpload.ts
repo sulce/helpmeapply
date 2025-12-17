@@ -59,8 +59,8 @@ async function uploadToCloudinary(options: UploadOptions): Promise<UploadResult>
       (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error)
-          reject(new Error(`Cloudinary upload failed: ${error.message}`))
-        } else if (result) {
+          reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`))
+        } else if (result?.secure_url) {
           console.log('Cloudinary upload successful:', result.secure_url)
           resolve({
             fileUrl: result.secure_url,
@@ -68,7 +68,8 @@ async function uploadToCloudinary(options: UploadOptions): Promise<UploadResult>
             provider: 'cloudinary'
           })
         } else {
-          reject(new Error('Cloudinary upload failed: No result returned'))
+          console.error('Cloudinary upload result:', result)
+          reject(new Error('Cloudinary upload failed: Invalid response format'))
         }
       }
     )

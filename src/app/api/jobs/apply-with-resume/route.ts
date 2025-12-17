@@ -26,7 +26,8 @@ const applyJobSchema = z.object({
     languages: z.array(z.string()).default([])
   }),
   coverLetter: z.string().optional(),
-  customizeResume: z.boolean().default(true)
+  customizeResume: z.boolean().default(true),
+  customizedResumeUrl: z.string().optional() // Add this field
 })
 
 export async function POST(req: NextRequest) {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { jobId, resumeData, coverLetter, customizeResume } = applyJobSchema.parse(body)
+    const { jobId, resumeData, coverLetter, customizeResume, customizedResumeUrl } = applyJobSchema.parse(body)
     
     console.log('=== RESUME DATA DEBUG ===')
     console.log('Resume Data:', JSON.stringify(resumeData, null, 2))
@@ -69,8 +70,9 @@ export async function POST(req: NextRequest) {
     let matchScore = 0
     let finalCoverLetter = coverLetter || ''
 
-    // Generate cover letter if none provided
+    // Generate cover letter only if none provided
     if (!finalCoverLetter || finalCoverLetter.trim().length === 0) {
+      console.log('No cover letter provided, generating new one...')
       try {
         finalCoverLetter = await generateCoverLetter({
           profile: {
@@ -103,39 +105,54 @@ Thank you for considering my application. I look forward to discussing how my sk
 Sincerely,
 ${resumeData.contactInfo.fullName}`
       }
+    } else {
+      console.log('Using provided cover letter, skipping generation')
     }
 
     if (customizeResume) {
-      // Customize resume for this specific job
-      const customizationResult = await structuredResumeCustomizer.customizeResumeForJob(
-        resumeData,
-        {
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          description: job.description || '',
-          requirements: []
-        },
-        session.user.id
-      )
+      // Use existing customized resume URL if provided, otherwise generate new one
+      if (customizedResumeUrl) {
+        console.log('Using existing customized resume URL:', customizedResumeUrl)
+        finalResumeUrl = customizedResumeUrl
+        customizationNotes = ['Used pre-generated customized resume']
+        keywordMatches = ['Resume already customized']
+        matchScore = 0.8 // Default score for pre-customized resumes
+      } else {
+        console.log('No existing customized resume URL, generating new one...')
+        // Customize resume for this specific job
+        const customizationResult = await structuredResumeCustomizer.customizeResumeForJob(
+          resumeData,
+          {
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            description: job.description || '',
+            requirements: []
+          },
+          session.user.id
+        )
 
-      finalResumeUrl = customizationResult.customizedPdfUrl
-      customizationNotes = customizationResult.customizationNotes
-      keywordMatches = customizationResult.keywordMatches
-      matchScore = customizationResult.matchScore
+        finalResumeUrl = customizationResult.customizedPdfUrl
+        customizationNotes = customizationResult.customizationNotes
+        keywordMatches = customizationResult.keywordMatches
+        matchScore = customizationResult.matchScore
+      }
     } else {
       // Use base resume without customization
       const { generateStructuredResumePDF } = await import('@/lib/structuredPdfGenerator')
       finalResumeUrl = await generateStructuredResumePDF(resumeData, session.user.id)
     }
 
-    // Mark job as applied
+    // CRITICAL operations that must succeed before responding (blocking)
+    console.log('Performing critical database operations...')
+    
+    // Mark job as applied (critical - user needs to know this succeeded)
     await prisma.job.update({
       where: { id: job.id },
       data: { appliedTo: true }
     })
 
-    // Create application record
+    // Create application record (critical - core business logic)
     const application = await prisma.application.create({
       data: {
         userId: session.user.id,
@@ -160,33 +177,14 @@ ${resumeData.contactInfo.fullName}`
       }
     })
 
-    // Create customized resume record for tracking
-    if (customizeResume) {
-      await prisma.customizedResume.create({
-        data: {
-          userId: session.user.id,
-          jobId: job.id,
-          applicationId: application.id,
-          originalResumeUrl: finalResumeUrl, // Required field
-          jobTitle: job.title, // Required field
-          company: job.company, // Required field
-          customizedContent: JSON.stringify(resumeData), // Store the structured data
-          customizedResumeUrl: finalResumeUrl,
-          customizationData: JSON.stringify({
-            customizationNotes,
-            keywordMatches,
-            matchScore
-          }),
-          keywordMatches: JSON.stringify(keywordMatches),
-          matchScore: matchScore
-        }
-      })
-    }
+    console.log('Critical operations completed, application ID:', application.id)
 
-    return NextResponse.json({
+    // Return successful response with real application data
+    const response = NextResponse.json({
       success: true,
       data: {
         applicationId: application.id,
+        jobId: job.id,
         resumeUrl: finalResumeUrl,
         coverLetter: finalCoverLetter,
         matchScore: matchScore,
@@ -196,6 +194,39 @@ ${resumeData.contactInfo.fullName}`
         message: `Successfully applied to ${job.title} at ${job.company}`
       }
     })
+
+    // NON-CRITICAL tracking operations in background (can fail without affecting user experience)
+    if (customizeResume) {
+      setTimeout(async () => {
+        try {
+          console.log('Creating customized resume tracking record in background...')
+          await prisma.customizedResume.create({
+            data: {
+              userId: session.user.id,
+              jobId: job.id,
+              applicationId: application.id,
+              originalResumeUrl: finalResumeUrl,
+              jobTitle: job.title,
+              company: job.company,
+              customizedContent: JSON.stringify(resumeData),
+              customizedResumeUrl: finalResumeUrl,
+              customizationData: JSON.stringify({
+                customizationNotes,
+                keywordMatches,
+                matchScore
+              }),
+              keywordMatches: JSON.stringify(keywordMatches),
+              matchScore: matchScore
+            }
+          })
+          console.log('Background tracking record created successfully')
+        } catch (error) {
+          console.error('Background tracking record failed (non-critical):', error)
+        }
+      }, 0)
+    }
+
+    return response
 
   } catch (error) {
     console.error('Job application error:', error)

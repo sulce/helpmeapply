@@ -91,9 +91,32 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Upload error:', error)
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to upload file'
+    let statusCode = 500
+    
+    if (error instanceof Error) {
+      if (error.message.includes('JSON')) {
+        errorMessage = 'File upload processing error. Please try again.'
+        statusCode = 422
+      } else if (error.message.includes('Cloudinary') || error.message.includes('S3')) {
+        errorMessage = 'File storage error. Please try again in a moment.'
+        statusCode = 503
+      } else if (error.message.includes('Invalid') || error.message.includes('validation')) {
+        errorMessage = error.message
+        statusCode = 400
+      } else {
+        errorMessage = 'Upload failed: ' + error.message
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to upload file' },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      },
+      { status: statusCode }
     )
   }
 }

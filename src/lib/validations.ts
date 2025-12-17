@@ -38,7 +38,15 @@ export const profileSchema = z.object({
   salaryMax: z.number().min(0, 'Maximum salary cannot be negative').optional(),
   preferredLocations: z.array(z.string()).min(1, 'At least one preferred location is required'),
   employmentTypes: z.array(z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP', 'REMOTE'])).min(1, 'At least one employment type is required'),
-  linkedinUrl: z.string().url('Invalid LinkedIn URL').optional().or(z.literal('')),
+  linkedinUrl: z.string().optional().refine((val) => {
+    if (!val || val === '') return true
+    try {
+      new URL(val)
+      return true
+    } catch {
+      return false
+    }
+  }, { message: 'Invalid LinkedIn URL format' }),
   indeedProfile: z.string().optional(),
   resumeUrl: z.string().optional(),
   skills: z.array(skillSchema).optional(),
