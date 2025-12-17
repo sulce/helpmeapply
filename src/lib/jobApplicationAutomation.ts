@@ -1,4 +1,20 @@
-import puppeteer, { Browser, Page } from 'puppeteer'
+// Optional dynamic import - automation features available only when puppeteer is installed
+let puppeteer: any = null
+
+async function loadPuppeteer() {
+  if (puppeteer !== null) return puppeteer
+  
+  try {
+    const puppeteerModule = await import('puppeteer')
+    puppeteer = puppeteerModule.default || puppeteerModule
+    console.log('Puppeteer loaded successfully for automation')
+    return puppeteer
+  } catch (error) {
+    console.warn('Puppeteer not available - automation features disabled:', error)
+    puppeteer = false // Set to false to avoid repeated attempts
+    return null
+  }
+}
 
 interface ApplicationData {
   fullName: string
@@ -21,12 +37,17 @@ interface ApplicationResult {
 }
 
 export class JobApplicationAutomation {
-  private browser: Browser | null = null
+  private browser: any = null
 
   async initBrowser(): Promise<void> {
     if (this.browser) return
 
-    this.browser = await puppeteer.launch({
+    const puppeteerInstance = await loadPuppeteer()
+    if (!puppeteerInstance) {
+      throw new Error('Browser automation not available - puppeteer not installed')
+    }
+
+    this.browser = await puppeteerInstance.launch({
       headless: process.env.NODE_ENV === 'production', // Show browser in development
       args: [
         '--no-sandbox',
@@ -99,6 +120,17 @@ export class JobApplicationAutomation {
   }
 
   private async applyToIndeed(jobUrl: string, data: ApplicationData): Promise<ApplicationResult> {
+    const puppeteerInstance = await loadPuppeteer()
+    if (!puppeteerInstance) {
+      return {
+        success: false,
+        platform: 'indeed',
+        method: 'redirect',
+        redirectUrl: jobUrl,
+        error: 'Browser automation not available'
+      }
+    }
+    
     if (!this.browser) throw new Error('Browser not initialized')
     
     const page = await this.browser.newPage()
@@ -168,7 +200,7 @@ export class JobApplicationAutomation {
     }
   }
 
-  private async clickIndeedApplyButton(page: Page): Promise<boolean> {
+  private async clickIndeedApplyButton(page: any): Promise<boolean> {
     const applySelectors = [
       'button[data-jk]', // Standard Indeed apply button
       '.jobsearch-IndeedApplyButton-newDesign', // New design
@@ -198,7 +230,7 @@ export class JobApplicationAutomation {
     return false
   }
 
-  private async fillIndeedApplicationForm(page: Page, data: ApplicationData): Promise<void> {
+  private async fillIndeedApplicationForm(page: any, data: ApplicationData): Promise<void> {
     console.log('Filling Indeed application form...')
 
     // Name fields
@@ -255,7 +287,7 @@ export class JobApplicationAutomation {
     console.log('Form filling completed')
   }
 
-  private async fillFirstFoundInput(page: Page, selectors: string[], value: string, fieldName: string): Promise<boolean> {
+  private async fillFirstFoundInput(page: any, selectors: string[], value: string, fieldName: string): Promise<boolean> {
     for (const selector of selectors) {
       try {
         const input = await page.$(selector)
@@ -289,7 +321,7 @@ export class JobApplicationAutomation {
     return false
   }
 
-  private async uploadResumeToIndeed(page: Page, resumeUrl: string): Promise<void> {
+  private async uploadResumeToIndeed(page: any, resumeUrl: string): Promise<void> {
     console.log('Attempting to upload resume...')
     
     const fileInputSelectors = [
@@ -324,7 +356,7 @@ export class JobApplicationAutomation {
     console.log('⚠️ No file upload input found')
   }
 
-  private async fillIndeedCoverLetter(page: Page, coverLetter: string): Promise<void> {
+  private async fillIndeedCoverLetter(page: any, coverLetter: string): Promise<void> {
     const coverLetterSelectors = [
       'textarea[name="coverLetter"]',
       'textarea[data-testid="cover-letter"]',
@@ -350,7 +382,7 @@ export class JobApplicationAutomation {
     console.log('⚠️ No cover letter field found')
   }
 
-  private async submitIndeedApplication(page: Page): Promise<boolean> {
+  private async submitIndeedApplication(page: any): Promise<boolean> {
     console.log('Attempting to submit application...')
     
     const submitSelectors = [
@@ -391,7 +423,7 @@ export class JobApplicationAutomation {
     return false
   }
 
-  private async getIndeedConfirmationId(page: Page): Promise<string | null> {
+  private async getIndeedConfirmationId(page: any): Promise<string | null> {
     try {
       // Wait for confirmation page
       await page.waitForSelector('.ia-ConfirmationPage, .confirmation, [data-testid="confirmation"]', { timeout: 10000 })
@@ -425,6 +457,17 @@ export class JobApplicationAutomation {
 
   // Greenhouse automation implementation
   private async applyToGreenhouse(jobUrl: string, data: ApplicationData): Promise<ApplicationResult> {
+    const puppeteerInstance = await loadPuppeteer()
+    if (!puppeteerInstance) {
+      return {
+        success: false,
+        platform: 'greenhouse',
+        method: 'redirect',
+        redirectUrl: jobUrl,
+        error: 'Browser automation not available'
+      }
+    }
+    
     if (!this.browser) throw new Error('Browser not initialized')
     
     const page = await this.browser.newPage()
@@ -486,7 +529,7 @@ export class JobApplicationAutomation {
     }
   }
 
-  private async fillGreenhouseApplicationForm(page: Page, data: ApplicationData): Promise<void> {
+  private async fillGreenhouseApplicationForm(page: any, data: ApplicationData): Promise<void> {
     console.log('Filling Greenhouse application form...')
 
     // Greenhouse standard form selectors (very consistent across companies)
@@ -508,7 +551,7 @@ export class JobApplicationAutomation {
     console.log('Greenhouse form filling completed')
   }
 
-  private async fillGreenhousePersonalInfo(page: Page, data: ApplicationData): Promise<void> {
+  private async fillGreenhousePersonalInfo(page: any, data: ApplicationData): Promise<void> {
     // First Name
     const firstNameSelectors = [
       '#first_name',
@@ -550,7 +593,7 @@ export class JobApplicationAutomation {
     console.log('✓ Greenhouse personal info filled')
   }
 
-  private async uploadResumeToGreenhouse(page: Page, resumeUrl: string): Promise<void> {
+  private async uploadResumeToGreenhouse(page: any, resumeUrl: string): Promise<void> {
     console.log('Attempting to upload resume to Greenhouse...')
     
     const fileInputSelectors = [
@@ -587,7 +630,7 @@ export class JobApplicationAutomation {
     console.log('⚠️ No Greenhouse file upload input found')
   }
 
-  private async fillGreenhouseCoverLetter(page: Page, coverLetter: string): Promise<void> {
+  private async fillGreenhouseCoverLetter(page: any, coverLetter: string): Promise<void> {
     const coverLetterSelectors = [
       '#cover_letter',
       'textarea[name="cover_letter"]',
@@ -613,7 +656,7 @@ export class JobApplicationAutomation {
     console.log('⚠️ No Greenhouse cover letter field found')
   }
 
-  private async fillGreenhouseAdditionalInfo(page: Page, data: ApplicationData): Promise<void> {
+  private async fillGreenhouseAdditionalInfo(page: any, data: ApplicationData): Promise<void> {
     // LinkedIn Profile
     if (data.linkedinProfile) {
       const linkedinSelectors = [
@@ -640,7 +683,7 @@ export class JobApplicationAutomation {
     console.log('✓ Greenhouse additional info filled')
   }
 
-  private async submitGreenhouseApplication(page: Page): Promise<boolean> {
+  private async submitGreenhouseApplication(page: any): Promise<boolean> {
     console.log('Attempting to submit Greenhouse application...')
     
     const submitSelectors = [
@@ -683,7 +726,7 @@ export class JobApplicationAutomation {
     return false
   }
 
-  private async getGreenhouseConfirmationId(page: Page): Promise<string | null> {
+  private async getGreenhouseConfirmationId(page: any): Promise<string | null> {
     try {
       // Wait for confirmation page or success message
       await page.waitForSelector('.confirmation, .success-message, .application-submitted, #confirmation', { timeout: 10000 })

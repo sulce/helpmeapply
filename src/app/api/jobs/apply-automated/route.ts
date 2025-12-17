@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { jobApplicationAutomation } from '@/lib/jobApplicationAutomation'
 import { z } from 'zod'
 
 const automatedApplySchema = z.object({
@@ -72,6 +71,9 @@ export async function POST(req: NextRequest) {
       console.log('Attempting automated application...')
       
       try {
+        // Dynamic import to avoid compilation issues when puppeteer is not installed
+        const { jobApplicationAutomation } = await import('@/lib/jobApplicationAutomation')
+        
         applicationResult = await jobApplicationAutomation.applyToJob(
           job.url, // job_apply_link from JSearch
           job.source, // job_publisher from JSearch  
@@ -208,21 +210,32 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Check automation system status
+    // Check if automation system can be loaded
+    let automationAvailable = false
+    let supportedPlatforms: string[] = []
+    
+    try {
+      await import('@/lib/jobApplicationAutomation')
+      automationAvailable = true
+      supportedPlatforms = ['indeed', 'greenhouse']
+    } catch (error) {
+      console.log('Automation system not available:', error)
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        automationAvailable: true,
-        supportedPlatforms: ['indeed', 'greenhouse'],
-        browserReady: true,
-        message: 'Automation system is ready'
+        automationAvailable,
+        supportedPlatforms,
+        browserReady: automationAvailable,
+        message: automationAvailable ? 'Automation system is ready' : 'Automation system not available - will use redirects'
       }
     })
     
   } catch (error) {
     return NextResponse.json({
       success: false,
-      error: 'Automation system unavailable',
+      error: 'Failed to check automation system status',
       data: {
         automationAvailable: false,
         supportedPlatforms: [],
