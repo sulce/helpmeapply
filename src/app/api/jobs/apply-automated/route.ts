@@ -64,7 +64,14 @@ export async function POST(req: NextRequest) {
       applyUrl: job.url // This should be job_apply_link from JSearch
     })
 
-    let applicationResult
+    let applicationResult: {
+      success: boolean;
+      platform: string;
+      method: 'redirect' | 'automated';
+      redirectUrl?: string;
+      confirmationId?: string;
+      error?: string;
+    }
     
     // Automation temporarily disabled for production stability
     console.log('Using redirect method for job application')
@@ -72,7 +79,7 @@ export async function POST(req: NextRequest) {
     applicationResult = {
       success: false,
       platform: job.source || 'unknown',
-      method: 'redirect' as const,
+      method: 'redirect',
       redirectUrl: job.url,
       error: 'Automation feature temporarily disabled - using manual application'
     }
@@ -161,7 +168,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Health check endpoint for the automation system
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     
