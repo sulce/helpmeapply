@@ -164,12 +164,7 @@ export class DocumentExtractor {
 
       try {
         // Execute pdf-parse with minimal options to prevent external file access
-        pdfParse(buffer, {
-          // Disable any features that might access external files
-          max: 0, // Process all pages
-          normalizeWhitespace: false, // Minimal processing
-          disableCombineTextItems: false
-        }).then((data) => {
+        pdfParse(buffer).then((data) => {
           clearTimeout(timeout)
           resolve(data)
         }).catch((error) => {
