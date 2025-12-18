@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
         employmentTypes: profile.employmentTypes,
         resumeUrl: profile.resumeUrl,
         linkedinUrl: profile.linkedinUrl,
-        skills: profile.skills?.map(skill => ({
+        skills: profile.skills?.map((skill: any) => ({
           name: skill.name,
           proficiency: skill.proficiency,
           yearsUsed: skill.yearsUsed,

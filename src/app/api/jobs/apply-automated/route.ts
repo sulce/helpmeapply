@@ -73,15 +73,53 @@ export async function POST(req: NextRequest) {
       error?: string;
     }
     
-    // Automation temporarily disabled for production stability
-    console.log('Using redirect method for job application')
-    
-    applicationResult = {
-      success: false,
-      platform: job.source || 'unknown',
-      method: 'redirect',
-      redirectUrl: job.url || undefined,
-      error: 'Automation feature temporarily disabled - using manual application'
+    if (useAutomation && job.url && job.source) {
+      // Attempt automated application
+      console.log('Attempting automated application...')
+      
+      try {
+        // Dynamic import to avoid compilation issues when puppeteer is not installed
+        const { jobApplicationAutomation } = await import('@/lib/jobApplicationAutomation')
+        
+        applicationResult = await jobApplicationAutomation.applyToJob(
+          job.url, // job_apply_link from JSearch
+          job.source, // job_publisher from JSearch  
+          {
+            fullName: resumeData.contactInfo.fullName,
+            email: resumeData.contactInfo.email,
+            phone: resumeData.contactInfo.phone,
+            resumeUrl: customizedResumeUrl || '',
+            coverLetter: coverLetter,
+            linkedinProfile: resumeData.contactInfo.linkedin,
+            portfolioUrl: resumeData.contactInfo.website
+          }
+        )
+        
+        console.log('Automation result:', applicationResult)
+        
+      } catch (automationError) {
+        console.error('Automation failed:', automationError)
+        
+        // Fallback to redirect
+        applicationResult = {
+          success: false,
+          platform: job.source || 'unknown',
+          method: 'redirect',
+          redirectUrl: job.url || undefined,
+          error: 'Automation failed, falling back to manual application'
+        }
+      }
+    } else {
+      // Skip automation, go straight to redirect
+      console.log('Automation disabled or insufficient job data, using redirect')
+      
+      applicationResult = {
+        success: false,
+        platform: job.source || 'unknown', 
+        method: 'redirect',
+        redirectUrl: job.url || undefined,
+        error: 'Automation not available for this job'
+      }
     }
 
     // Create response based on automation result
@@ -183,9 +221,13 @@ export async function GET() {
     let automationAvailable = false
     let supportedPlatforms: string[] = []
     
-    // Automation temporarily disabled for production stability
-    automationAvailable = false
-    supportedPlatforms = []
+    try {
+      await import('@/lib/jobApplicationAutomation')
+      automationAvailable = true
+      supportedPlatforms = ['indeed', 'greenhouse']
+    } catch (error) {
+      console.log('Automation system not available:', error)
+    }
 
     return NextResponse.json({
       success: true,

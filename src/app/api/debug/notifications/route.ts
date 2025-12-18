@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     })
 
     console.log('Debug - All notifications:')
-    notifications.forEach(notif => {
+    notifications.forEach((notif: any) => {
       console.log(`  - ID: ${notif.id}, UserId: ${notif.userId}, JobId: ${notif.jobId}, Job: ${notif.job?.title}`)
     })
 
