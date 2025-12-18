@@ -340,7 +340,7 @@ export class JobApplicationAutomation {
 
       for (const selector of fileInputSelectors) {
         try {
-          const fileInput = await page.$(selector)
+          const fileInput = await page.$(selector) as any
           if (fileInput) {
             console.log(`Found file input: ${selector}`)
             await fileInput.uploadFile(tempFilePath)
@@ -625,7 +625,7 @@ export class JobApplicationAutomation {
 
       for (const selector of fileInputSelectors) {
         try {
-          const fileInput = await page.$(selector)
+          const fileInput = await page.$(selector) as any
           if (fileInput) {
             console.log(`Found Greenhouse file input: ${selector}`)
             await fileInput.uploadFile(tempFilePath)
