@@ -319,7 +319,7 @@ Guidelines:
     }))
 
     // Validate skills
-    validated.skills = validated.skills.map(skill => ({
+    validated.skills = validated.skills.map((skill: any) => ({
       ...skill,
       category: this.validateSkillCategory(skill.category),
       proficiency: this.validateProficiency(skill.proficiency)

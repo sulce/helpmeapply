@@ -355,7 +355,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
           <h2 className="text-xl font-semibold mb-4">Skills & Expertise</h2>
           
           <SkillsAutocomplete
-            selectedSkills={skills.map(skill => ({
+            selectedSkills={skills.map((skill: any) => ({
               id: Date.now().toString() + Math.random(),
               name: skill.name,
               category: 'Technical', // Default category for profile skills

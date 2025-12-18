@@ -83,12 +83,12 @@ export async function GET(req: NextRequest) {
 
     // Calculate conversion rates
     const totalApps = applications
-    const appliedCount = statusBreakdown.find(s => s.status === 'APPLIED')?._count.status || 0
-    const reviewingCount = statusBreakdown.find(s => s.status === 'REVIEWING')?._count.status || 0
-    const interviewScheduledCount = statusBreakdown.find(s => s.status === 'INTERVIEW_SCHEDULED')?._count.status || 0
-    const interviewedCount = statusBreakdown.find(s => s.status === 'INTERVIEWED')?._count.status || 0
-    const offerCount = statusBreakdown.find(s => s.status === 'OFFER_RECEIVED')?._count.status || 0
-    const rejectedCount = statusBreakdown.find(s => s.status === 'REJECTED')?._count.status || 0
+    const appliedCount = statusBreakdown.find((s: any) => s.status === 'APPLIED')?._count.status || 0
+    const reviewingCount = statusBreakdown.find((s: any) => s.status === 'REVIEWING')?._count.status || 0
+    const interviewScheduledCount = statusBreakdown.find((s: any) => s.status === 'INTERVIEW_SCHEDULED')?._count.status || 0
+    const interviewedCount = statusBreakdown.find((s: any) => s.status === 'INTERVIEWED')?._count.status || 0
+    const offerCount = statusBreakdown.find((s: any) => s.status === 'OFFER_RECEIVED')?._count.status || 0
+    const rejectedCount = statusBreakdown.find((s: any) => s.status === 'REJECTED')?._count.status || 0
 
     const conversionFunnel = {
       applied: appliedCount + reviewingCount + interviewScheduledCount + interviewedCount + offerCount,
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Calculate response times
-    const responseTimes = responseTimeAnalysis.map(app => {
+    const responseTimes = responseTimeAnalysis.map((app: any) => {
       if (!app.responseAt) return null
       const responseTime = new Date(app.responseAt).getTime() - new Date(app.appliedAt).getTime()
       return {
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     }).filter(Boolean)
 
     const averageResponseTime = responseTimes.length > 0 
-      ? responseTimes.reduce((sum, rt) => sum + (rt?.days || 0), 0) / responseTimes.length 
+      ? responseTimes.reduce((sum: any, rt: any) => sum + (rt?.days || 0), 0) / responseTimes.length 
       : null
 
     // Weekly application trend
@@ -116,14 +116,14 @@ export async function GET(req: NextRequest) {
       const weekStart = new Date(now.getTime() - (weekIndex + 1) * 7 * 24 * 60 * 60 * 1000)
       const weekEnd = new Date(now.getTime() - weekIndex * 7 * 24 * 60 * 60 * 1000)
       
-      const weekApplications = recentApplications.filter(app => 
+      const weekApplications = recentApplications.filter((app: any) => 
         new Date(app.appliedAt) >= weekStart && new Date(app.appliedAt) < weekEnd
       )
 
       return {
         week: `Week ${4 - weekIndex}`,
         applications: weekApplications.length,
-        responses: weekApplications.filter(app => app.responseAt).length
+        responses: weekApplications.filter((app: any) => app.responseAt).length
       }
     }).reverse()
 
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
       { range: '<60%', applications: 0, interviews: 0, offers: 0 }
     ]
 
-    recentApplications.forEach(app => {
+    recentApplications.forEach((app: any) => {
       if (!app.matchScore) return
       
       const score = app.matchScore * 100
@@ -181,14 +181,14 @@ export async function GET(req: NextRequest) {
         averageResponseTime: averageResponseTime ? Math.round(averageResponseTime * 10) / 10 : null
       },
       conversionFunnel,
-      statusBreakdown: statusBreakdown.map(s => ({
+      statusBreakdown: statusBreakdown.map((s: any) => ({
         status: s.status,
         count: s._count.status,
         percentage: totalApps > 0 ? Math.round((s._count.status / totalApps * 100) * 10) / 10 : 0
       })),
       weeklyTrend,
       matchScoreAnalysis,
-      industryPerformance: industryPerformance.map(ip => ({
+      industryPerformance: industryPerformance.map((ip: any) => ({
         company: ip.company,
         applications: ip._count.company,
         averageMatchScore: ip._avg.matchScore ? Math.round(ip._avg.matchScore * 100) : null

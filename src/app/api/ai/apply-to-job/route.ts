@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     const matchingRequest: JobMatchingRequest = {
       profile: {
         fullName: profile.fullName,
-        skills: profile.skills.map(skill => ({
+        skills: profile.skills.map((skill: any) => ({
           name: skill.name,
           proficiency: skill.proficiency,
           yearsUsed: skill.yearsUsed || undefined,
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
           },
           profile: {
             fullName: profile.fullName,
-            skills: profile.skills.map(skill => ({
+            skills: profile.skills.map((skill: any) => ({
               name: skill.name,
               proficiency: skill.proficiency,
               yearsUsed: skill.yearsUsed || undefined,
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       const coverLetterRequest: CoverLetterRequest = {
         profile: {
           fullName: profile.fullName,
-          skills: profile.skills.map(skill => ({
+          skills: profile.skills.map((skill: any) => ({
             name: skill.name,
             proficiency: skill.proficiency,
             yearsUsed: skill.yearsUsed || undefined,

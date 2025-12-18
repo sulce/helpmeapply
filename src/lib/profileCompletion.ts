@@ -123,8 +123,8 @@ export function calculateProfileCompletion(profile: Profile | null | undefined):
   const missingFields = fields.filter(field => !field.isComplete)
   
   // Calculate weighted completion percentage
-  const totalWeight = fields.reduce((sum, field) => sum + field.weight, 0)
-  const completedWeight = completedFields.reduce((sum, field) => sum + field.weight, 0)
+  const totalWeight = fields.reduce((sum: any, field) => sum + field.weight, 0)
+  const completedWeight = completedFields.reduce((sum: any, field) => sum + field.weight, 0)
   const percentage = Math.round((completedWeight / totalWeight) * 100)
 
   // Generate next steps based on missing critical/important fields

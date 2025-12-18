@@ -304,8 +304,8 @@ function analyzeSalaryTrends(jobs: any[], applications: any[], profile: any): st
   }).filter(Boolean)
   
   if (salariesWithRanges.length > 0) {
-    const avgMin = salariesWithRanges.reduce((sum, job) => sum + job.salaryMin, 0) / salariesWithRanges.length
-    const avgMax = salariesWithRanges.reduce((sum, job) => sum + job.salaryMax, 0) / salariesWithRanges.length
+    const avgMin = salariesWithRanges.reduce((sum: any, job) => sum + job.salaryMin, 0) / salariesWithRanges.length
+    const avgMax = salariesWithRanges.reduce((sum: any, job) => sum + job.salaryMax, 0) / salariesWithRanges.length
     
     // Use user's salary expectations from profile
     const userSalaryMin = profile?.salaryMin

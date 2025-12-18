@@ -115,23 +115,23 @@ export async function GET(req: NextRequest) {
       lastUpdated: structuredResume.updatedAt,
       applicationsWithResume: applications.length,
       averageMatchScore: applications.length > 0 
-        ? applications.reduce((sum, app) => sum + (app.matchScore || 0), 0) / applications.length
+        ? applications.reduce((sum: any, app: any) => sum + (app.matchScore || 0), 0) / applications.length
         : 0
     }
 
     // Performance by job source/platform
-    const platformPerformance = resumeAnalytics.map(platform => ({
+    const platformPerformance = resumeAnalytics.map((platform: any) => ({
       platform: platform.source || 'Direct',
       applications: platform._count.source,
       averageMatchScore: platform._avg.matchScore ? Math.round(platform._avg.matchScore * 100) : null
     }))
 
     // Response rate analysis
-    const responsesReceived = applications.filter(app => app.responseAt).length
+    const responsesReceived = applications.filter((app: any) => app.responseAt).length
     const responseRate = applications.length > 0 ? (responsesReceived / applications.length * 100) : 0
 
     // Interview rate analysis
-    const interviews = applications.filter(app => 
+    const interviews = applications.filter((app: any) => 
       ['INTERVIEW_SCHEDULED', 'INTERVIEWED', 'OFFER_RECEIVED'].includes(app.status)
     ).length
     const interviewRate = applications.length > 0 ? (interviews / applications.length * 100) : 0
@@ -173,12 +173,12 @@ export async function GET(req: NextRequest) {
       platformPerformance,
       recommendations,
       recentActivity: {
-        applicationsLast30Days: applications.filter(app => 
+        applicationsLast30Days: applications.filter((app: any) => 
           new Date(app.appliedAt) > new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000)
         ).length,
         averageMatchScore: Math.round(templatePerformance.averageMatchScore * 100),
         topPerformingPlatforms: platformPerformance
-          .sort((a, b) => (b.averageMatchScore || 0) - (a.averageMatchScore || 0))
+          .sort((a: any, b: any) => (b.averageMatchScore || 0) - (a.averageMatchScore || 0))
           .slice(0, 3)
       }
     })

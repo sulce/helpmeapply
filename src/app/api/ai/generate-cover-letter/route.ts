@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     const coverLetterRequest: CoverLetterRequest = {
       profile: {
         fullName: profile.fullName,
-        skills: profile.skills.map(skill => ({
+        skills: profile.skills.map((skill: any) => ({
           name: skill.name,
           proficiency: skill.proficiency,
           yearsUsed: skill.yearsUsed || undefined,

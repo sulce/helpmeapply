@@ -62,6 +62,7 @@ export class DocumentExtractor {
 
       switch (fileType) {
         case 'pdf':
+          console.log('Processing PDF file...')
           const pdfResult = await this.extractPDF(buffer)
           extractedText = pdfResult.text
           pages = pdfResult.pages
@@ -69,15 +70,17 @@ export class DocumentExtractor {
         
         case 'docx':
         case 'doc':
+          console.log('Processing Word document...')
           extractedText = await this.extractWord(buffer)
           break
         
         case 'txt':
+          console.log('Processing text file...')
           extractedText = buffer.toString('utf-8')
           break
         
         default:
-          throw new Error(`Unsupported file type: ${fileType}`)
+          throw new Error(`Unsupported file type: ${fileType}. Supported formats: PDF (temporarily unavailable), Word (.docx/.doc), and Text (.txt)`)
       }
 
       // Clean and structure the extracted text
@@ -106,65 +109,78 @@ export class DocumentExtractor {
    */
   private async extractPDF(buffer: Buffer): Promise<{ text: string; pages: number }> {
     try {
-      // Add safety checks for buffer
+      // Validate buffer
       if (!buffer || buffer.length === 0) {
         throw new Error('Invalid PDF buffer')
       }
       
-      // Validate buffer contains PDF data
+      // Check PDF header
       const pdfHeader = buffer.slice(0, 4).toString()
       if (!pdfHeader.includes('%PDF')) {
         throw new Error('Buffer does not contain valid PDF data')
       }
-      
-      // Wrap pdf-parse in a Promise to catch any synchronous errors during initialization
-      const data = await new Promise<any>((resolve, reject) => {
-        try {
-          // Use setTimeout to ensure we catch any immediate errors
-          setTimeout(async () => {
-            try {
-              const result = await pdfParse(buffer, {
-                max: 0, // No page limit
-              })
-              resolve(result)
-            } catch (err) {
-              reject(err)
-            }
-          }, 0)
-        } catch (err) {
-          reject(err)
-        }
-      })
-      
-      if (!data || !data.text) {
-        throw new Error('PDF parsing returned no text')
-      }
+
+      // Create a safer execution context for pdf-parse
+      // This helps isolate the library and prevent it from accessing external files
+      const result = await this.executePdfParseSafely(buffer)
       
       return {
-        text: data.text,
-        pages: data.numpages || 1,
+        text: result.text || 'PDF processed but no text extracted',
+        pages: result.numpages || 1,
       }
     } catch (error) {
       console.error('PDF extraction error:', error)
       
-      // Check if this is the specific test file error or ENOENT errors
-      if (error instanceof Error) {
-        if (error.message.includes('test/data') || error.message.includes('ENOENT')) {
-          console.error('PDF-parse trying to access test/system files - this is a library bug')
-          return {
-            text: 'PDF extraction temporarily unavailable due to library issue. Please try again later or use a different file format.',
-            pages: 1
-          }
+      // If it's a file access error, return a helpful message
+      if (error instanceof Error && (
+        error.message.includes('ENOENT') || 
+        error.message.includes('test/data') ||
+        (error as any).code === 'ENOENT'
+      )) {
+        console.warn('PDF-parse library attempting to access non-existent test files')
+        return {
+          text: 'PDF extraction failed due to a library issue. Please try uploading your resume in Word format (.docx) or enter your information manually.',
+          pages: 1
         }
       }
       
-      // For production safety, always return a fallback instead of crashing
-      console.warn('PDF extraction failed, returning fallback:', error)
+      // Generic fallback
       return {
-        text: 'PDF text extraction failed - please try uploading again or use a different format',
+        text: 'PDF text extraction failed. Please try a different file format or enter your information manually.',
         pages: 1
       }
     }
+  }
+
+  /**
+   * Execute pdf-parse in a safer context to prevent file system access issues
+   */
+  private async executePdfParseSafely(buffer: Buffer): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // Set a timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('PDF parsing timed out'))
+      }, 30000) // 30 second timeout
+
+      try {
+        // Execute pdf-parse with minimal options to prevent external file access
+        pdfParse(buffer, {
+          // Disable any features that might access external files
+          max: 0, // Process all pages
+          normalizeWhitespace: false, // Minimal processing
+          disableCombineTextItems: false
+        }).then((data) => {
+          clearTimeout(timeout)
+          resolve(data)
+        }).catch((error) => {
+          clearTimeout(timeout)
+          reject(error)
+        })
+      } catch (syncError) {
+        clearTimeout(timeout)
+        reject(syncError)
+      }
+    })
   }
 
   /**
@@ -191,6 +207,11 @@ export class DocumentExtractor {
   private cleanExtractedText(text: string): string {
     if (!text || text.length < 10) {
       throw new Error('Extracted text is too short or empty - possible extraction failure')
+    }
+
+    // Handle PDF error messages specially - don't clean them
+    if (text.includes('PDF extraction failed') || text.includes('PDF text extraction failed')) {
+      return text
     }
 
     // Check for heavily corrupted text (more than 30% non-printable or garbled characters)

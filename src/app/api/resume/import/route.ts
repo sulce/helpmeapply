@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
       
       // Then create new skills
       await prisma.skill.createMany({
-        data: parsedData.skills.map(skill => ({
+        data: parsedData.skills.map((skill: any) => ({
           profileId: updatedProfile.id,
           name: skill.name,
           proficiency: skill.proficiency.toUpperCase() as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT',

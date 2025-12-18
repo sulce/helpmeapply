@@ -221,7 +221,7 @@ export function ResumeEditor({ userId, onSave, initialData, isInitialDataSaved =
   const updateSkill = (id: string, updates: Partial<Skill>) => {
     setResumeData(prev => ({
       ...prev,
-      skills: prev.skills.map(skill => 
+      skills: prev.skills.map((skill: any) => 
         skill.id === id ? { ...skill, ...updates } : skill
       )
     }))
