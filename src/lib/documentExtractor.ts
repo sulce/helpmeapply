@@ -111,20 +111,55 @@ export class DocumentExtractor {
         throw new Error('Invalid PDF buffer')
       }
       
-      const data = await pdfParse(buffer, {
-        // Add options to prevent test file access
-        max: 0, // No page limit
+      // Validate buffer contains PDF data
+      const pdfHeader = buffer.slice(0, 4).toString()
+      if (!pdfHeader.includes('%PDF')) {
+        throw new Error('Buffer does not contain valid PDF data')
+      }
+      
+      // Wrap pdf-parse in a Promise to catch any synchronous errors during initialization
+      const data = await new Promise<any>((resolve, reject) => {
+        try {
+          // Use setTimeout to ensure we catch any immediate errors
+          setTimeout(async () => {
+            try {
+              const result = await pdfParse(buffer, {
+                max: 0, // No page limit
+              })
+              resolve(result)
+            } catch (err) {
+              reject(err)
+            }
+          }, 0)
+        } catch (err) {
+          reject(err)
+        }
       })
       
+      if (!data || !data.text) {
+        throw new Error('PDF parsing returned no text')
+      }
+      
       return {
-        text: data.text || '',
+        text: data.text,
         pages: data.numpages || 1,
       }
     } catch (error) {
       console.error('PDF extraction error:', error)
       
-      // Fallback for production: return empty text instead of crashing
-      console.warn('PDF extraction failed, returning fallback')
+      // Check if this is the specific test file error or ENOENT errors
+      if (error instanceof Error) {
+        if (error.message.includes('test/data') || error.message.includes('ENOENT')) {
+          console.error('PDF-parse trying to access test/system files - this is a library bug')
+          return {
+            text: 'PDF extraction temporarily unavailable due to library issue. Please try again later or use a different file format.',
+            pages: 1
+          }
+        }
+      }
+      
+      // For production safety, always return a fallback instead of crashing
+      console.warn('PDF extraction failed, returning fallback:', error)
       return {
         text: 'PDF text extraction failed - please try uploading again or use a different format',
         pages: 1

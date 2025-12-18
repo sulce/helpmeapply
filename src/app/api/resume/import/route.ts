@@ -77,17 +77,117 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse the resume using AI
-    const parseResult: ResumeParsingResult = await resumeParser.parseFromUrl(resumeUrl)
+    console.log('🔍 Attempting to parse resume...')
+    let parseResult: ResumeParsingResult
+    
+    try {
+      parseResult = await resumeParser.parseFromUrl(resumeUrl)
+    } catch (error) {
+      console.error('Resume parsing threw an exception:', error)
+      
+      // Return a graceful fallback instead of failing
+      const basicResumeData = {
+        contactInfo: {
+          fullName: '',
+          email: session.user.email || '',
+          phone: '',
+          address: '',
+          linkedin: '',
+          website: ''
+        },
+        professionalSummary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        projects: [],
+        languages: [],
+        templateRegion: 'US',
+        includePhoto: false
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Resume uploaded but parsing encountered issues. Manual entry may be required.',
+        data: {
+          parseResult: {
+            confidence: 0.1,
+            warnings: [
+              'Resume parsing encountered technical issues.',
+              'Please manually verify and enter your resume information.',
+              error instanceof Error ? `Error: ${error.message}` : 'Unknown parsing error'
+            ],
+            extractedSections: {
+              contactInfo: false,
+              experience: 0,
+              education: 0,
+              skills: 0,
+              certifications: 0,
+              projects: 0,
+              summary: false
+            }
+          },
+          resumeData: basicResumeData,
+          completionPercentage: 10,
+          structuredResumeId: null,
+          profileUpdated: false,
+          requiresManualEntry: true
+        }
+      })
+    }
 
     if (!parseResult.success || !parseResult.data) {
-      return NextResponse.json(
-        { 
-          error: 'Failed to parse resume',
-          details: parseResult.error,
-          warnings: parseResult.warnings
+      console.log('⚠️ Resume parsing was not successful, providing fallback')
+      
+      // Provide fallback instead of error
+      const basicResumeData = {
+        contactInfo: {
+          fullName: '',
+          email: session.user.email || '',
+          phone: '',
+          address: '',
+          linkedin: '',
+          website: ''
         },
-        { status: 400 }
-      )
+        professionalSummary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        projects: [],
+        languages: [],
+        templateRegion: 'US',
+        includePhoto: false
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Resume uploaded but could not be automatically parsed. Manual entry required.',
+        data: {
+          parseResult: {
+            confidence: 0.1,
+            warnings: [
+              parseResult.error || 'Resume parsing failed',
+              'Please manually enter your resume information.',
+              ...(parseResult.warnings || [])
+            ],
+            extractedSections: {
+              contactInfo: false,
+              experience: 0,
+              education: 0,
+              skills: 0,
+              certifications: 0,
+              projects: 0,
+              summary: false
+            }
+          },
+          resumeData: basicResumeData,
+          completionPercentage: 10,
+          structuredResumeId: null,
+          profileUpdated: false,
+          requiresManualEntry: true
+        }
+      })
     }
 
     const parsedData = parseResult.data
