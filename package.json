@@ -58,6 +58,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
+    "puppeteer": "^21.0.0",
     "zod": "^3.23.8"
   },
   "engines": {
