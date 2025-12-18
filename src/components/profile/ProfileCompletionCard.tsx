@@ -2,12 +2,19 @@
 
 import { useRouter } from 'next/navigation'
 
+interface ProfileCompletionCardProps {
+  profile?: any
+  compact?: boolean
+  onRefresh?: () => Promise<void>
+  className?: string
+}
+
 // Temporary placeholder component while we fix the automation
-export function ProfileCompletionCard() {
+export function ProfileCompletionCard({ profile, compact, onRefresh, className }: ProfileCompletionCardProps) {
   const router = useRouter()
   
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${className || ''}`}>
       <h3 className="text-lg font-semibold mb-2">Profile Completion</h3>
       <p className="text-gray-600 mb-4">Complete your profile to enable automation features.</p>
       <button 
