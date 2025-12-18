@@ -74,7 +74,7 @@ export function OnboardingWizard({ profile, onComplete, onSkip, onRefresh }: Onb
     },
     {
       id: 'complete',
-      title: "You&apos;re All Set!",
+      title: "You're All Set!",
       description: 'AI is now ready to start finding jobs for you.',
       icon: <CheckCircle className="h-8 w-8 text-green-600" />,
       canSkip: false
@@ -188,7 +188,7 @@ export function OnboardingWizard({ profile, onComplete, onSkip, onRefresh }: Onb
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 jobTitlePrefs: ['Software Engineer', 'Developer', 'Software Developer'],
-                isDraft: false
+                isDraft: true
               })
             })
             console.log('Default job titles added')

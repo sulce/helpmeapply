@@ -174,7 +174,7 @@ export function ProfileCompletionCard({ profile, compact = false, className = ''
         {completion.nextSteps.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-gray-900">
-              {completion.percentage >= 100 ? 'You&apos;re All Set!' : 'Next Steps'}
+              {completion.percentage >= 100 ? 'You're All Set!' : 'Next Steps'}
             </h4>
             <div className="space-y-2">
               {completion.nextSteps.map((step, index) => (
