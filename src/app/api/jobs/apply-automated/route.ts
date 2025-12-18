@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     let applicationResult: {
       success: boolean;
       platform: string;
-      method: 'redirect' | 'automated';
+      method: 'redirect' | 'automated' | 'failed';
       redirectUrl?: string;
       confirmationId?: string;
       error?: string;
