@@ -177,25 +177,9 @@ export function OnboardingWizard({ profile, onComplete, onSkip, onRefresh }: Onb
         console.log('Default AI settings applied successfully')
         
         // Check if job title preferences are missing and add default ones
-        if (!profile?.jobTitlePrefs || 
-            (Array.isArray(profile.jobTitlePrefs) ? profile.jobTitlePrefs.length === 0 : 
-             JSON.parse(profile.jobTitlePrefs || '[]').length === 0)) {
-          
-          console.log('Adding default job title preferences...')
-          try {
-            await fetch('/api/profile', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jobTitlePrefs: ['Software Engineer', 'Developer', 'Software Developer'],
-                isDraft: true
-              })
-            })
-            console.log('Default job titles added')
-          } catch (profileError) {
-            console.error('Failed to add default job titles:', profileError)
-          }
-        }
+        // No longer setting default job title preferences
+        // Job titles should come from resume extraction or user manual input
+        console.log('Skipping default job title preferences - relying on resume extraction or manual user input')
         
         if (onRefresh) {
           await onRefresh()

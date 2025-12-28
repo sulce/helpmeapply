@@ -240,7 +240,12 @@ export class StructuredResumeCustomizer {
       ])
     ].filter(keyword => keyword && keyword.length > 2)
 
-    console.log(`Fast analysis found ${foundTechSkills.length} tech skills, ${foundSoftSkills.length} soft skills, ${allKeywords.length} total keywords`)
+    console.log(`=== JOB ANALYSIS RESULTS ===`)
+    console.log(`Job: "${job.title}" at ${job.company}`)
+    console.log(`Tech skills found: ${foundTechSkills.join(', ')}`)
+    console.log(`Soft skills found: ${foundSoftSkills.join(', ')}`)
+    console.log(`All keywords: ${allKeywords.join(', ')}`)
+    console.log(`Total: ${foundTechSkills.length} tech, ${foundSoftSkills.length} soft, ${allKeywords.length} total keywords`)
 
     return {
       technicalSkills: foundTechSkills,
@@ -401,8 +406,8 @@ export class StructuredResumeCustomizer {
     jobAnalysis: any
   ): string {
     if (!originalSummary.trim()) {
-      const cleanJobTitle = this.cleanJobTitle(job.title)
-      return `Experienced professional with expertise seeking ${cleanJobTitle} opportunities to contribute technical skills and domain knowledge to drive business success.`
+      // If no original summary, create a basic one and let the enhancement logic make it job-specific
+      return `Professional with proven experience and skills relevant to this role.`
     }
 
     // Add job-specific keywords to the summary if they're not already there
@@ -412,7 +417,21 @@ export class StructuredResumeCustomizer {
     // Add a sentence about the target role if not already mentioned
     const cleanJobTitle = this.cleanJobTitle(job.title)
     if (!enhanced.toLowerCase().includes(cleanJobTitle.toLowerCase())) {
-      enhanced = `${enhanced} Seeking opportunities as a ${cleanJobTitle} to leverage expertise and drive innovation.`
+      const article = this.getProperArticle(cleanJobTitle)
+      const relevantTech = keywords.slice(0, 2).join(' and ') // Get top 2 technologies
+      const companyName = job.company || 'the organization'
+      
+      // Create natural, job-specific language without template phrases
+      let targetStatement = ''
+      const skillContext = relevantTech ? `with ${relevantTech} experience` : 'with relevant expertise'
+      
+      if (companyName !== 'the organization') {
+        targetStatement = `Seeking to bring ${skillContext} to the ${cleanJobTitle} role at ${companyName}.`
+      } else {
+        targetStatement = `Seeking ${article} ${cleanJobTitle} position to utilize ${skillContext}.`
+      }
+      
+      enhanced = `${enhanced} ${targetStatement}`
     }
 
     return enhanced
@@ -443,59 +462,138 @@ export class StructuredResumeCustomizer {
 
   private createRoleSpecificExpertise(jobTitle: string, keywords: string[]): string {
     const title = jobTitle.toLowerCase()
+    
+    // Handle different profession types, not just tech
+    if (title.includes('nurse') || title.includes('healthcare')) {
+      const medicalKeywords = keywords.filter(k => 
+        ['patient care', 'clinical', 'medical', 'nursing', 'healthcare'].includes(k.toLowerCase())
+      )
+      if (medicalKeywords.length > 0) {
+        return `Experienced in ${medicalKeywords.slice(0, 3).join(', ')} with focus on quality patient outcomes.`
+      }
+    }
+    
+    if (title.includes('teacher') || title.includes('education')) {
+      return `Dedicated to student success through innovative teaching methods and curriculum development.`
+    }
+    
+    if (title.includes('manager') || title.includes('supervisor')) {
+      return `Proven leadership experience with track record of team development and operational excellence.`
+    }
+    
+    // Tech roles
     const relevantTechs = keywords.filter(k => 
-      ['react', 'node.js', 'javascript', 'typescript', 'angular', 'vue', 'python', 'java'].includes(k.toLowerCase())
+      ['react', 'node.js', 'javascript', 'typescript', 'angular', 'vue', 'python', 'java', 'sql', 'aws'].includes(k.toLowerCase())
     )
     
-    if (title.includes('full stack')) {
-      const frontendTechs = relevantTechs.filter(tech => 
+    if (title.includes('full stack') && relevantTechs.length > 2) {
+      const frontend = relevantTechs.filter(tech => 
         ['react', 'javascript', 'typescript', 'angular', 'vue'].includes(tech.toLowerCase())
       )
-      const backendTechs = relevantTechs.filter(tech => 
-        ['node.js', 'python', 'java', 'api'].includes(tech.toLowerCase())
+      const backend = relevantTechs.filter(tech => 
+        ['node.js', 'python', 'java', 'sql', 'aws'].includes(tech.toLowerCase())
       )
       
-      if (frontendTechs.length > 0 && backendTechs.length > 0) {
-        return `Specialized in full-stack development with expertise in frontend technologies like ${frontendTechs.slice(0, 2).join(', ')} and backend systems using ${backendTechs.slice(0, 2).join(', ')}.`
+      if (frontend.length > 0 && backend.length > 0) {
+        return `Full-stack development experience with ${frontend.slice(0, 2).join(', ')} and ${backend.slice(0, 2).join(', ')}.`
       }
     }
     
     if (relevantTechs.length > 0) {
-      return `Strong expertise in ${relevantTechs.slice(0, 3).join(', ')} with proven track record of delivering scalable solutions.`
+      return `Strong experience with ${relevantTechs.slice(0, 3).join(', ')}.`
     }
     
+    // Generic fallback based on job analysis
     return ''
   }
 
-  private cleanJobTitle(rawTitle: string): string {
-    // Clean up job titles that might contain company names or extra text
-    // Examples: 
-    // "Full Stack Developer (Frontend: React, Redux, JavaScript, TypeScript, HTML5, Next.js and Backend[...])" -> "Full Stack Developer"
+
+
+  private getProperArticle(text: string): string {
+    // Check if the word starts with a vowel sound
+    const firstLetter = text.trim().toLowerCase().charAt(0)
+    const vowels = ['a', 'e', 'i', 'o', 'u']
     
-    let cleaned = rawTitle
+    // Special cases for words that start with 'u' but sound like consonant (like "university")
+    const consonantSoundingU = ['university', 'user', 'unified', 'unique']
+    const startsWithConsonantU = consonantSoundingU.some(word => 
+      text.trim().toLowerCase().startsWith(word)
+    )
     
-    // First, extract everything BEFORE the first parenthesis
-    const beforeParens = rawTitle.split('(')[0].trim()
-    if (beforeParens && beforeParens.length > 3) {
-      cleaned = beforeParens
-    } else {
-      // Fallback: remove parenthetical content
-      cleaned = cleaned.replace(/\s*\([^)]*\)/g, '')
+    if (vowels.includes(firstLetter) && !startsWithConsonantU) {
+      return 'an'
     }
     
-    // Remove company name patterns like "Company is hiring:" or "Company -"
-    cleaned = cleaned.replace(/^[^:]*:\s*/i, '') // Remove "Company is hiring: "
-    cleaned = cleaned.replace(/^[^-]*-\s*/i, '') // Remove "Company - "
+    return 'a'
+  }
+
+  private cleanJobTitle(rawTitle: string): string {
+    // Simple, universal job title extraction for ALL professions
+    // Focus on removing clear junk, not guessing what's a company vs job title
     
-    // Remove location patterns at the end like " in City" or " - City"  
-    cleaned = cleaned.replace(/\s+in\s+[^,]*$/i, '') // Remove " in Toronto"
-    cleaned = cleaned.replace(/\s*-\s*[^,]*$/i, '') // Remove " - Toronto"
-    cleaned = cleaned.replace(/,\s*[^,]*$/i, '') // Remove ", Toronto" 
+    let cleaned = rawTitle.trim()
     
-    // Clean up extra whitespace
-    cleaned = cleaned.trim()
+    console.log(`=== CLEANING JOB TITLE ===`)
+    console.log(`Original: "${cleaned}"`)
     
-    console.log(`Job title cleaned: "${rawTitle}" -> "${cleaned}"`)
+    // 1. Remove clear company patterns: "Company is hiring: Title"
+    cleaned = cleaned.replace(/^[^:]*:\s*/i, '')
+    console.log(`After colon removal: "${cleaned}"`)
+    
+    // 2. Remove parenthetical details: "Title (details here)"
+    cleaned = cleaned.replace(/\s*\([^)]*\)/g, '')
+    console.log(`After parentheses removal: "${cleaned}"`)
+    
+    // 3. Remove common suffixes that aren't part of the actual job title
+    const suffixesToRemove = [
+      /[-\s]*full\s*time$/i,
+      /[-\s]*part\s*time$/i, 
+      /[-\s]*remote$/i,
+      /[-\s]*hybrid$/i,
+      /[-\s]*on\s*site$/i,
+      /[-\s]*permanent$/i,
+      /[-\s]*temporary$/i,
+      /[-\s]*contract$/i,
+      /\s+in\s+[^,]*$/i,    // " in Toronto"
+      /,\s*[^,]*$/i         // ", Toronto" 
+    ]
+    
+    suffixesToRemove.forEach(pattern => {
+      const before = cleaned
+      cleaned = cleaned.replace(pattern, '').trim()
+      if (before !== cleaned) {
+        console.log(`After removing suffix: "${cleaned}"`)
+      }
+    })
+    
+    // 4. ONLY remove company prefix if there's a clear separator AND company name is obvious
+    // Pattern: "CompanyName - Job Title" where CompanyName doesn't contain job words
+    const dashSplit = cleaned.split(' - ')
+    if (dashSplit.length === 2) {
+      const [first, second] = dashSplit
+      const firstWords = first.toLowerCase().split(/\s+/)
+      
+      // Check if first part contains obvious job title words (for ALL professions)
+      const jobWords = ['manager', 'director', 'analyst', 'specialist', 'coordinator', 'assistant', 
+                       'developer', 'engineer', 'designer', 'consultant', 'administrator',
+                       'supervisor', 'lead', 'senior', 'junior', 'principal', 'chief',
+                       'nurse', 'teacher', 'accountant', 'lawyer', 'doctor', 'therapist',
+                       'front', 'back', 'end', 'full', 'stack', 'head', 'vice']
+      
+      const hasJobWords = firstWords.some(word => jobWords.includes(word))
+      
+      if (!hasJobWords && second.trim().length > 2) {
+        console.log(`Removing company prefix: "${first}" -> "${second}"`)
+        cleaned = second.trim()
+      }
+    }
+    
+    // 5. Clean up whitespace and multiple dashes/spaces
+    cleaned = cleaned.replace(/\s*-+\s*/g, '-').replace(/\s+/g, ' ').trim()
+    
+    console.log(`Final result: "${cleaned}"`)
+    console.log(`=== END CLEANING ===`)
+    
     return cleaned || rawTitle // Fallback to original if cleaning resulted in empty string
   }
 

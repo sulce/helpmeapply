@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { 
   ExternalLink, 
@@ -14,7 +15,10 @@ import {
   XCircle,
   AlertCircle,
   Eye,
-  FileText
+  FileText,
+  MessageSquare,
+  Play,
+  Mic
 } from 'lucide-react'
 
 interface Application {
@@ -51,10 +55,12 @@ const statusConfig = {
 }
 
 export function ApplicationsList() {
+  const router = useRouter()
   const [applications, setApplications] = useState<ApplicationsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [showCoverLetter, setShowCoverLetter] = useState<string | null>(null)
+  const [startingInterview, setStartingInterview] = useState<string | null>(null)
 
   useEffect(() => {
     fetchApplications()
@@ -109,6 +115,33 @@ export function ApplicationsList() {
     if (score >= 0.8) return 'text-green-600'
     if (score >= 0.6) return 'text-yellow-600'
     return 'text-red-600'
+  }
+
+  const startInterviewSession = async (applicationId: string) => {
+    try {
+      setStartingInterview(applicationId)
+      
+      const response = await fetch('/api/interview/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to start interview session')
+      }
+
+      const data = await response.json()
+      
+      // Redirect to interview page
+      router.push(`/interview/${data.data.sessionId}`)
+      
+    } catch (error) {
+      console.error('Error starting interview:', error)
+      alert('Failed to start interview session. Please try again.')
+    } finally {
+      setStartingInterview(null)
+    }
   }
 
   if (isLoading) {
@@ -234,6 +267,22 @@ export function ApplicationsList() {
                   </div>
 
                   <div className="flex items-center space-x-2 ml-4">
+                    {/* Practice Interview Button - Only show for applied jobs */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => startInterviewSession(app.id)}
+                      disabled={startingInterview === app.id}
+                      className="text-purple-600 hover:text-purple-700 border-purple-200 hover:border-purple-300"
+                    >
+                      {startingInterview === app.id ? (
+                        <Play className="h-4 w-4 mr-1 animate-pulse" />
+                      ) : (
+                        <Mic className="h-4 w-4 mr-1" />
+                      )}
+                      {startingInterview === app.id ? 'Starting...' : 'Practice Interview'}
+                    </Button>
+                    
                     {app.resumeCustomizationData && (
                       <Button
                         size="sm"

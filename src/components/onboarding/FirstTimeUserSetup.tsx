@@ -34,6 +34,35 @@ export function FirstTimeUserSetup({ onComplete, onSkip, userEmail, userName }: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: 'upload' })
       })
+
+      // Trigger resume import to extract structured data and job title
+      console.log('📄 [VALIDATION] Starting resume import to extract job title...')
+      const importResponse = await fetch('/api/resume/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeUrl: data.fileUrl })
+      })
+      
+      if (importResponse.ok) {
+        const importData = await importResponse.json()
+        console.log('✅ [VALIDATION] Resume import completed successfully')
+        
+        // Now trigger automatic job search using extracted job title
+        console.log('🔄 [VALIDATION] Triggering auto job search after resume import...')
+        const jobSearchResponse = await fetch('/api/jobs/auto-search', {
+          method: 'POST'
+        })
+        
+        if (jobSearchResponse.ok) {
+          const jobData = await jobSearchResponse.json()
+          console.log(`✅ [VALIDATION] Auto search completed: Found ${jobData.data.jobs?.length || 0} jobs using ${jobData.data.preferences.source} preferences`)
+          console.log(`🎯 [VALIDATION] Search query used: "${jobData.data.preferences.query}"`)
+        } else {
+          console.warn('⚠️ [VALIDATION] Auto job search failed, will continue anyway')
+        }
+      } else {
+        console.warn('⚠️ [VALIDATION] Resume import failed, skipping auto job search')
+      }
     } catch (error) {
       console.error('Error completing onboarding:', error)
     }

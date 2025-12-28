@@ -192,6 +192,39 @@ export async function POST(req: NextRequest) {
 
     const parsedData = parseResult.data
 
+    // Extract most recent job title from experience data
+    const getMostRecentJobTitle = (experience: any[]): string | null => {
+      console.log('🔍 [DEBUG] Experience array:', JSON.stringify(experience, null, 2))
+      
+      if (!experience || experience.length === 0) {
+        console.log('⚠️ [DEBUG] Experience array is empty or null')
+        return null
+      }
+      
+      // Sort experiences by priority: current jobs first, then by end date (most recent first)
+      const sortedExperience = [...experience].sort((a, b) => {
+        // Current jobs always come first
+        if (a.current && !b.current) return -1
+        if (!a.current && b.current) return 1
+        
+        // If both current or both not current, sort by end date
+        const aEnd = a.endDate === 'Present' || a.current ? new Date() : new Date(a.endDate || '1900-01-01')
+        const bEnd = b.endDate === 'Present' || b.current ? new Date() : new Date(b.endDate || '1900-01-01')
+        return bEnd.getTime() - aEnd.getTime()
+      })
+      
+      console.log('🔍 [DEBUG] Sorted experience:', JSON.stringify(sortedExperience, null, 2))
+      
+      // Get the most recent job title
+      const mostRecentJob = sortedExperience[0]
+      console.log('🔍 [DEBUG] Most recent job:', JSON.stringify(mostRecentJob, null, 2))
+      
+      return mostRecentJob?.jobTitle || null
+    }
+
+    const mostRecentJobTitle = getMostRecentJobTitle(parsedData.experience || [])
+    console.log(`🎯 [VALIDATION] Extracted most recent job title from experience: "${mostRecentJobTitle || 'none'}"`)
+
     // Store the parsed resume as structured resume data
     console.log('💾 Saving structured resume data to database...')
     const structuredResume = await prisma.structuredResume.upsert({
@@ -245,6 +278,13 @@ export async function POST(req: NextRequest) {
     if (!profile?.linkedinUrl && parsedData.contactInfo.linkedin) {
       profileUpdates.linkedinUrl = parsedData.contactInfo.linkedin
     }
+    
+    // Always update defaultJobTitle with most recent job title from resume
+    if (mostRecentJobTitle) {
+      profileUpdates.defaultJobTitle = mostRecentJobTitle
+      profileUpdates.preferencesSource = 'RESUME'
+      console.log(`💾 [VALIDATION] Setting defaultJobTitle: "${mostRecentJobTitle}", preferencesSource: RESUME`)
+    }
 
     // Handle skills separately if we have any
     const hasSkillsToUpdate = parsedData.skills && parsedData.skills.length > 0
@@ -265,6 +305,8 @@ export async function POST(req: NextRequest) {
         yearsExperience: 0,
         salaryMin: 0,
         salaryMax: 0,
+        defaultJobTitle: mostRecentJobTitle,
+        preferencesSource: mostRecentJobTitle ? 'RESUME' : undefined,
         ...profileUpdates
       }
     })

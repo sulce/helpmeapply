@@ -18,9 +18,13 @@ import {
   AlertTriangle,
   Zap,
   FileText,
-  Send
+  Send,
+  Bot,
+  Edit
 } from 'lucide-react'
 import { JobApplicationModal } from '@/components/jobs/JobApplicationModal'
+import { SmartApplyModal } from '@/components/jobs/SmartApplyModal'
+import { getJobSourceInfo } from '@/lib/jobSourceDetector'
 
 interface Job {
   id: string
@@ -32,10 +36,12 @@ interface Job {
   salaryRange?: string
   employmentType?: string
   source: string
+  sourceInfo?: any
   matchScore?: number
   isProcessed: boolean
   appliedTo: boolean
   createdAt: string
+  canAutoApply?: boolean
 }
 
 interface ScanStatus {
@@ -59,6 +65,7 @@ export function JobsViewer() {
   const [filter, setFilter] = useState<'all' | 'new' | 'available' | 'applied'>('new')
   const [isManualScanning, setIsManualScanning] = useState(false)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [selectedSmartApplyJob, setSelectedSmartApplyJob] = useState<Job | null>(null)
   const [userResumeData, setUserResumeData] = useState<any>(null)
 
   useEffect(() => {
@@ -72,9 +79,14 @@ export function JobsViewer() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Refetch jobs when filter changes
+  useEffect(() => {
+    fetchJobs(1) // Reset to page 1 when filter changes
+  }, [filter])
+
   const fetchJobs = async (page = 1) => {
     try {
-      const response = await fetch(`/api/jobs?page=${page}&limit=20`, {
+      const response = await fetch(`/api/jobs?page=${page}&limit=20&filter=${filter}`, {
         credentials: 'include'
       })
       if (response.ok) {
@@ -156,17 +168,8 @@ export function JobsViewer() {
 
   // Removed old applyToJob function - now using JobApplicationModal
 
-  const filteredJobs = jobs.filter(job => {
-    if (filter === 'new') {
-      // Show jobs from the last 24 hours that haven't been applied to
-      const jobDate = new Date(job.createdAt)
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      return jobDate > yesterday && !job.appliedTo
-    }
-    if (filter === 'available') return !job.appliedTo
-    if (filter === 'applied') return job.appliedTo
-    return true
-  })
+  // No client-side filtering needed - filtering happens at API level
+  const filteredJobs = jobs
 
   const getMatchScoreColor = (score?: number) => {
     if (!score) return 'text-gray-500'
@@ -253,14 +256,10 @@ export function JobsViewer() {
         {/* Filter tabs */}
         <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
           {[
-            { key: 'new', label: 'New (24h)', count: jobs.filter(j => {
-              const jobDate = new Date(j.createdAt)
-              const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-              return jobDate > yesterday && !j.appliedTo
-            }).length },
-            { key: 'available', label: 'Available', count: jobs.filter(j => !j.appliedTo).length },
-            { key: 'applied', label: 'Applied', count: jobs.filter(j => j.appliedTo).length },
-            { key: 'all', label: 'All', count: jobs.length }
+            { key: 'new', label: 'New (24h)' },
+            { key: 'available', label: 'Available' },
+            { key: 'applied', label: 'Applied' },
+            { key: 'all', label: 'All' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -271,7 +270,7 @@ export function JobsViewer() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {tab.label} ({tab.count})
+              {tab.label} {filter === tab.key && pagination.totalCount > 0 && `(${pagination.totalCount})`}
             </button>
           ))}
         </div>
@@ -320,6 +319,22 @@ export function JobsViewer() {
                         Applied
                       </Badge>
                     )}
+                    {(() => {
+                      // Get source info for this job
+                      const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
+                      
+                      // Don't show badges for backup/mock jobs
+                      if (job.source === 'backup' || job.source === 'mock') {
+                        return null
+                      }
+                      
+                      return (
+                        <Badge variant="outline" className={sourceInfo.badge.color}>
+                          <span className="mr-1">{sourceInfo.icon}</span>
+                          {sourceInfo.badge.text}
+                        </Badge>
+                      )
+                    })()}
                   </div>
                   
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
@@ -372,11 +387,55 @@ export function JobsViewer() {
                   {!job.appliedTo && (
                     <Button
                       size="sm"
-                      onClick={() => setSelectedJob(job)}
+                      onClick={() => {
+                        console.log('=== JOB BUTTON CLICK DEBUG ===')
+                        console.log('job.canAutoApply:', job.canAutoApply)
+                        console.log('job.sourceInfo:', job.sourceInfo)
+                        console.log('job.automationType:', job.automationType)
+                        
+                        // Route based on the job's automation capabilities
+                        if (job.canAutoApply && job.automationType === 'on_site_form') {
+                          // Greenhouse/Lever style automation
+                          setSelectedSmartApplyJob(job)
+                        } else if (job.canAutoApply && job.automationType === 'direct') {
+                          // Indeed style automation - need to implement this modal
+                          console.log('Direct automation job - routing to JobApplicationModal')
+                          setSelectedJob(job)
+                        } else {
+                          // Manual application required
+                          setSelectedJob(job)
+                        }
+                      }}
                       className="whitespace-nowrap"
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Apply Now
+                      {(() => {
+                        const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
+                        
+                        switch (sourceInfo.source) {
+                          case 'INDEED':
+                            return (
+                              <>
+                                <Bot className="h-4 w-4 mr-2" />
+                                Smart Apply
+                              </>
+                            )
+                          case 'GREENHOUSE':
+                          case 'LEVER':
+                            return (
+                              <>
+                                <Zap className="h-4 w-4 mr-2" />
+                                Smart Apply
+                              </>
+                            )
+                          default:
+                            return (
+                              <>
+                                <Send className="h-4 w-4 mr-2" />
+                                Apply Now
+                              </>
+                            )
+                        }
+                      })()}
                     </Button>
                   )}
                 </div>
@@ -421,6 +480,14 @@ export function JobsViewer() {
         isOpen={!!selectedJob}
         onClose={() => setSelectedJob(null)}
         userResumeData={userResumeData}
+      />
+
+      {/* Smart Apply Modal for Greenhouse/Lever */}
+      <SmartApplyModal
+        job={selectedSmartApplyJob}
+        isOpen={!!selectedSmartApplyJob}
+        onClose={() => setSelectedSmartApplyJob(null)}
+        userProfile={userResumeData}
       />
     </div>
   )

@@ -66,11 +66,15 @@ export async function POST(request: NextRequest) {
       userId: session.user.id
     })
 
-
-    // Update user profile with resume URL
+    // Update user profile with resume URL only
+    // Job title will be extracted during resume import process for better accuracy
+    console.log(`💾 [VALIDATION] Storing resume URL, job title will be extracted during import process`)
+    
     await prisma.profile.upsert({
       where: { userId: session.user.id },
-      update: { resumeUrl: uploadResult.fileUrl },
+      update: { 
+        resumeUrl: uploadResult.fileUrl
+      },
       create: {
         userId: session.user.id,
         fullName: session.user.name || '',
@@ -79,6 +83,7 @@ export async function POST(request: NextRequest) {
         preferredLocations: JSON.stringify([]),
         employmentTypes: JSON.stringify([]),
         resumeUrl: uploadResult.fileUrl,
+        preferencesSource: 'RESUME'
       },
     })
 
@@ -87,6 +92,7 @@ export async function POST(request: NextRequest) {
       fileUrl: uploadResult.fileUrl,
       fileName: uploadResult.fileName,
       provider: uploadResult.provider,
+      note: 'Job title will be extracted during resume import process'
     })
 
   } catch (error) {

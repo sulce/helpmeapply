@@ -10,6 +10,7 @@ const jobsQuerySchema = z.object({
   source: z.string().optional(),
   appliedTo: z.boolean().optional(),
   minMatchScore: z.number().min(0).max(1).optional(),
+  filter: z.enum(['all', 'new', 'available', 'applied']).optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
       source: searchParams.get('source') || undefined,
       appliedTo: searchParams.get('appliedTo') ? searchParams.get('appliedTo') === 'true' : undefined,
       minMatchScore: searchParams.get('minMatchScore') ? parseFloat(searchParams.get('minMatchScore')!) : undefined,
+      filter: searchParams.get('filter') as 'all' | 'new' | 'available' | 'applied' || 'all',
     }
 
     const validatedParams = jobsQuerySchema.parse(queryParams)
@@ -85,6 +87,19 @@ export async function GET(req: NextRequest) {
       where.matchScore = { gte: validatedParams.minMatchScore }
     }
 
+    // Apply frontend filter logic at database level
+    if (validatedParams.filter === 'new') {
+      // Show jobs from the last 24 hours that haven't been applied to
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      where.createdAt = { gte: yesterday }
+      where.appliedTo = false
+    } else if (validatedParams.filter === 'available') {
+      where.appliedTo = false
+    } else if (validatedParams.filter === 'applied') {
+      where.appliedTo = true
+    }
+    // 'all' filter doesn't add any conditions
+
     // Get jobs with pagination
     const page = validatedParams.page || 1
     const limit = validatedParams.limit || 20
@@ -116,10 +131,23 @@ export async function GET(req: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit)
 
+    // Add canAutoApply flag and sourceInfo based on actual job URL
+    const { normalizeJobWithSource } = await import('@/lib/jobSourceDetector')
+    
+    const jobsWithAutoApply = jobs.map(job => {
+      const normalizedJob = normalizeJobWithSource(job)
+      return {
+        ...job,
+        canAutoApply: normalizedJob.canAutoApply,
+        sourceInfo: normalizedJob.sourceInfo,
+        automationType: normalizedJob.automationType
+      }
+    })
+
     return NextResponse.json({
       success: true,
       data: {
-        jobs,
+        jobs: jobsWithAutoApply,
         pagination: {
           currentPage: page,
           totalPages,

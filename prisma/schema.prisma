@@ -55,6 +55,7 @@ model User {
   jobNotifications   JobNotification[]
   applicationReviews ApplicationReview[]
   customizedResumes  CustomizedResume[]
+  interviewSessions  InterviewSession[]
 
   @@map("users")
 }
@@ -81,22 +82,24 @@ model PasswordResetToken {
 }
 
 model Profile {
-  id                String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String    @unique @map("user_id") @db.ObjectId
-  fullName          String    @map("full_name")
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String           @unique @map("user_id") @db.ObjectId
+  fullName          String           @map("full_name")
   email             String
   mobile            String?
-  jobTitlePrefs     String    @map("job_title_preferences") // JSON string
-  yearsExperience   Int?      @map("years_experience")
-  salaryMin         Int?      @map("salary_min")
-  salaryMax         Int?      @map("salary_max")
-  preferredLocations String   @map("preferred_locations") // JSON string
-  employmentTypes   String    @map("employment_types") // JSON string
-  resumeUrl         String?   @map("resume_url")
-  linkedinUrl       String?   @map("linkedin_url")
-  indeedProfile     String?   @map("indeed_profile")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  jobTitlePrefs     String           @map("job_title_preferences") // JSON string
+  defaultJobTitle   String?          @map("default_job_title") // System-extracted from resume
+  preferencesSource PreferencesSource @default(RESUME) @map("preferences_source")
+  yearsExperience   Int?             @map("years_experience")
+  salaryMin         Int?             @map("salary_min")
+  salaryMax         Int?             @map("salary_max")
+  preferredLocations String          @map("preferred_locations") // JSON string
+  employmentTypes   String           @map("employment_types") // JSON string
+  resumeUrl         String?          @map("resume_url")
+  linkedinUrl       String?          @map("linkedin_url")
+  indeedProfile     String?          @map("indeed_profile")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
 
   user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   skills           Skill[]
@@ -134,6 +137,11 @@ enum ProficiencyLevel {
   EXPERT
 }
 
+enum PreferencesSource {
+  RESUME
+  USER
+}
+
 model Application {
   id                String            @id @default(auto()) @map("_id") @db.ObjectId
   userId            String            @map("user_id") @db.ObjectId
@@ -159,6 +167,7 @@ model Application {
 
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   customizedResumes CustomizedResume[]
+  interviewSessions InterviewSession[]
 
   @@map("applications")
 }
@@ -385,4 +394,53 @@ model CustomizedResume {
   application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
 
   @@map("customized_resumes")
+}
+
+model InterviewSession {
+  id              String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String             @map("user_id") @db.ObjectId
+  applicationId   String             @map("application_id") @db.ObjectId
+  jobTitle        String             @map("job_title")
+  company         String
+  jobDescription  String             @map("job_description")
+  resumeUrl       String             @map("resume_url")
+  totalQuestions  Int                @default(5) @map("total_questions")
+  currentQuestion Int                @default(0) @map("current_question")
+  status          InterviewStatus    @default(IN_PROGRESS)
+  overallScore    Float?             @map("overall_score")
+  feedback        String?            @map("feedback") // Overall interview feedback
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  completedAt     DateTime?          @map("completed_at")
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application  Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questions    InterviewQuestion[]
+
+  @@map("interview_sessions")
+}
+
+model InterviewQuestion {
+  id                String         @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId         String         @map("session_id") @db.ObjectId
+  questionIndex     Int            @map("question_index")
+  questionAudioUrl  String?        @map("question_audio_url")
+  questionText      String?        @map("question_text")
+  userAnswerAudioUrl String?       @map("user_answer_audio_url")
+  userAnswerText    String?        @map("user_answer_text") // Transcription
+  feedback          String?        @map("feedback") // AI feedback for this answer
+  score             Float?         @map("score")
+  answeredAt        DateTime?      @map("answered_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_questions")
+}
+
+enum InterviewStatus {
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+  CANCELLED
 }

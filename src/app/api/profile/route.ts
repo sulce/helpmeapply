@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
     if (data.jobTitlePrefs !== undefined) {
       updateData.jobTitlePrefs = JSON.stringify(data.jobTitlePrefs)
       createData.jobTitlePrefs = JSON.stringify(data.jobTitlePrefs)
+      // If user is setting job title preferences, mark as USER source
+      if (data.jobTitlePrefs.length > 0) {
+        updateData.preferencesSource = 'USER'
+        createData.preferencesSource = 'USER'
+      }
     } else if (!isDraft) {
       createData.jobTitlePrefs = '[]'
     }

@@ -15,6 +15,7 @@ export interface ExtractedDocument {
     title: string
     content: string
   }[]
+  extractedJobTitle?: string
 }
 
 export class DocumentExtractor {
@@ -86,6 +87,9 @@ export class DocumentExtractor {
       // Clean and structure the extracted text
       const cleanedText = this.cleanExtractedText(extractedText)
       const sections = this.parseResumeSection(cleanedText)
+      
+      // Extract the most recent job title
+      const extractedJobTitle = this.extractJobTitle(cleanedText, sections)
 
       return {
         text: cleanedText,
@@ -97,6 +101,7 @@ export class DocumentExtractor {
           fileName,
         },
         sections,
+        extractedJobTitle,
       }
     } catch (error) {
       console.error('Error extracting document:', error)
@@ -348,6 +353,163 @@ export class DocumentExtractor {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ')
+  }
+
+  /**
+   * Extract the most recent job title from resume
+   */
+  private extractJobTitle(text: string, sections?: { title: string; content: string }[]): string | undefined {
+    // Strategy 1: Look in experience section first (most reliable)
+    if (sections) {
+      const experienceSection = sections.find(section => 
+        section.title.toLowerCase().includes('experience') ||
+        section.title.toLowerCase().includes('employment') ||
+        section.title.toLowerCase().includes('work')
+      )
+      
+      if (experienceSection) {
+        const jobTitle = this.extractJobTitleFromExperience(experienceSection.content)
+        if (jobTitle) return jobTitle
+      }
+    }
+
+    // Strategy 2: Look for patterns in full text
+    return this.extractJobTitleFromText(text)
+  }
+
+  /**
+   * Extract job title from experience section content
+   */
+  private extractJobTitleFromExperience(experienceText: string): string | undefined {
+    const lines = experienceText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+    
+    // Common patterns for job titles in experience sections
+    const jobTitlePatterns = [
+      // Pattern: Job Title | Company | Date
+      /^([A-Z][a-zA-Z\s&,-]+?)\s*[\|\/]\s*([A-Z][a-zA-Z\s&,.-]+?)\s*[\|\/]?\s*(\d{4}|\w+\s+\d{4})/,
+      // Pattern: Job Title at Company
+      /^([A-Z][a-zA-Z\s&,-]+?)\s+(?:at|@)\s+([A-Z][a-zA-Z\s&,.-]+)/,
+      // Pattern: Job Title - Company
+      /^([A-Z][a-zA-Z\s&,-]+?)\s*[-–—]\s*([A-Z][a-zA-Z\s&,.-]+)/,
+      // Pattern: Job Title (most recent, likely first in list)
+      /^([A-Z][a-zA-Z\s&,-]{5,40}?)(?:\s*[-–—•]|\s*$)/
+    ]
+
+    for (const line of lines) {
+      for (const pattern of jobTitlePatterns) {
+        const match = line.match(pattern)
+        if (match && match[1]) {
+          const title = this.cleanJobTitle(match[1])
+          if (this.isValidJobTitle(title)) {
+            return title
+          }
+        }
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Extract job title from full resume text
+   */
+  private extractJobTitleFromText(text: string): string | undefined {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+    
+    // Look for patterns near the top of the resume (first 20 lines)
+    const topLines = lines.slice(0, 20)
+    
+    for (const line of topLines) {
+      // Skip lines that are clearly contact info or headers
+      if (this.isContactInfo(line) || this.isResumeHeader(line)) {
+        continue
+      }
+      
+      // Look for standalone job titles (often appear after name)
+      if (this.isValidJobTitle(line) && line.length > 5 && line.length < 50) {
+        return this.cleanJobTitle(line)
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Clean and format job title
+   */
+  private cleanJobTitle(title: string): string {
+    return title
+      .replace(/[^\w\s&,-]/g, '') // Remove special chars except common job title chars
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  /**
+   * Validate if a string could be a job title
+   */
+  private isValidJobTitle(title: string): boolean {
+    if (!title || title.length < 3 || title.length > 50) return false
+    
+    // Common job title keywords
+    const jobKeywords = [
+      'developer', 'engineer', 'manager', 'director', 'analyst', 'specialist',
+      'coordinator', 'assistant', 'associate', 'senior', 'junior', 'lead',
+      'principal', 'architect', 'consultant', 'designer', 'officer', 'executive',
+      'administrator', 'supervisor', 'technician', 'representative', 'advisor',
+      'scientist', 'researcher', 'programmer', 'administrator', 'intern',
+      'software', 'data', 'product', 'project', 'sales', 'marketing', 'finance',
+      'human', 'resources', 'operations', 'customer', 'business', 'quality',
+      'security', 'network', 'systems', 'web', 'mobile', 'frontend', 'backend',
+      'fullstack', 'devops', 'cloud', 'digital', 'content', 'social', 'technical'
+    ]
+    
+    const lowerTitle = title.toLowerCase()
+    
+    // Must contain at least one job-related keyword
+    const hasJobKeyword = jobKeywords.some(keyword => lowerTitle.includes(keyword))
+    
+    // Must not be a common non-job-title phrase
+    const excludePatterns = [
+      'contact', 'email', 'phone', 'address', 'objective', 'summary',
+      'education', 'skills', 'experience', 'references', 'linkedin',
+      'github', 'portfolio', 'website', 'certification', 'degree'
+    ]
+    
+    const isExcluded = excludePatterns.some(pattern => lowerTitle.includes(pattern))
+    
+    return hasJobKeyword && !isExcluded
+  }
+
+  /**
+   * Check if line contains contact information
+   */
+  private isContactInfo(line: string): boolean {
+    const contactPatterns = [
+      /@\w+\.\w+/, // Email
+      /\(\d{3}\)\s*\d{3}-\d{4}/, // Phone
+      /\d{3}-\d{3}-\d{4}/, // Phone
+      /linkedin\.com/, // LinkedIn
+      /github\.com/, // GitHub
+      /^\d+\s+\w+/, // Address starting with number
+    ]
+    
+    return contactPatterns.some(pattern => pattern.test(line))
+  }
+
+  /**
+   * Check if line is a resume header/section
+   */
+  private isResumeHeader(line: string): boolean {
+    const headerKeywords = [
+      'resume', 'curriculum vitae', 'cv', 'objective', 'summary',
+      'professional summary', 'profile', 'qualifications'
+    ]
+    
+    const lowerLine = line.toLowerCase()
+    return headerKeywords.some(keyword => lowerLine.includes(keyword))
   }
 
   /**

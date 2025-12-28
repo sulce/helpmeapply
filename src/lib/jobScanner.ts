@@ -15,6 +15,7 @@ interface JobListing {
   employmentType?: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'FREELANCE' | 'INTERNSHIP' | 'REMOTE'
   source: string
   sourceJobId?: string
+  canAutoApply?: boolean
 }
 
 export class JobScanner {
@@ -143,34 +144,51 @@ export class JobScanner {
     const allJobs: JobListing[] = []
     
     try {
+      // Import preference resolver
+      const { resolveJobPreferences } = await import('./preferenceResolver')
+      
       // Use job search service with automatic fallback
       const jsearchApiKey = process.env.JSEARCH_API_KEY
       console.log('JobScanner - API Key check:', jsearchApiKey ? `✓ Found (${jsearchApiKey.length} chars)` : '✗ Missing')
       const jobAPI = createJobSearchService(jsearchApiKey)
-      const jobTitlePrefs = JSON.parse(profile.jobTitlePrefs || '[]')
-      const preferredLocations = JSON.parse(profile.preferredLocations || '[]')
-      const employmentTypes = JSON.parse(profile.employmentTypes || '[]')
       
-      console.log('JobScanner - Profile data:')
-      console.log('  Job titles:', jobTitlePrefs)
-      console.log('  Locations:', preferredLocations)
-      console.log('  Employment types:', employmentTypes)
+      // Use preference resolver instead of direct field access
+      const preferences = await resolveJobPreferences(profile.userId)
+      
+      console.log('JobScanner - Resolved preferences:')
+      console.log(`  Query: "${preferences.query}"`)
+      console.log(`  Location: "${preferences.location || 'Any'}"`)
+      console.log(`  Employment types: [${preferences.employmentTypes.join(', ')}]`)
+      console.log(`  Source: ${preferences.source}`)
 
-      // Search for each job title preference
-      for (const jobTitle of jobTitlePrefs.slice(0, 3)) { // Limit to first 3 to manage API calls
-        // If no preferred locations, don't search - user must specify locations
-        if (preferredLocations.length === 0) {
-          console.log(`JobScanner - Skipping job search for "${jobTitle}" - no preferred locations specified`)
-          continue
-        }
+      // Parse job titles from preferences - handle both single titles and OR combinations
+      const rawJobTitles = preferences.query.includes(' OR ') 
+        ? preferences.query.split(' OR ').map(t => t.trim())
+        : [preferences.query]
+      
+      // Filter out generic titles and get up to 3 specific job titles
+      const jobTitles = rawJobTitles
+        .filter(title => title && title !== 'software engineer' && title.length > 2)
+        .slice(0, 3) // Limit to 3 job titles to avoid rate limiting
+      
+      if (jobTitles.length === 0) {
+        console.log('JobScanner - No specific job titles found, skipping automated search')
+        return allJobs
+      }
 
-        for (const location of preferredLocations.slice(0, 2)) { // Limit to first 2 locations
-          // Format location for JSearch API
-          let formattedLocation = location === 'Remote' ? undefined : location
-          if (formattedLocation && formattedLocation.toLowerCase() === 'toronto') {
-            formattedLocation = 'Toronto, ON, Canada'
-          }
-          
+      const location = preferences.location
+      
+      // Format location for JSearch API
+      let formattedLocation = location === 'Remote' ? undefined : location
+      if (formattedLocation && formattedLocation.toLowerCase() === 'toronto') {
+        formattedLocation = 'Toronto, ON, Canada'
+      }
+      
+      console.log(`JobScanner - Will search for ${jobTitles.length} job titles: [${jobTitles.join(', ')}]`)
+      
+      // Search for each job title separately to get more diverse results
+      for (const jobTitle of jobTitles) {
+        try {
           // Format query according to JSearch API docs: include location in query
           const queryWithLocation = formattedLocation 
             ? `${jobTitle} jobs in ${formattedLocation.replace(', ON, Canada', '').replace(', Ontario', '').replace('Toronto, ON, Canada', 'Toronto')}`
@@ -178,57 +196,25 @@ export class JobScanner {
           
           const searchParams: JobSearchParams = {
             query: queryWithLocation,
-            country: 'Ca', // Canada country code for JSearch API
+            location: formattedLocation,
             datePosted: 'week',
-            employmentTypes: employmentTypes.length > 0 ? employmentTypes : undefined,
+            employmentTypes: preferences.employmentTypes.length > 0 ? preferences.employmentTypes : undefined,
             page: 1,
-            numPages: 1
+            numPages: 2  // Fetch 2 pages per job title (2 * 3 titles = up to 6 pages total)
           }
 
-          try {
-            console.log(`JobScanner - Searching: "${jobTitle}" in "${formattedLocation || 'Remote'}"`)
-            const response = await jobAPI.searchJobs(searchParams)
-            const normalizedJobs = response.jobs.map(job => this.normalizeJobToListing(job))
-            console.log(`JobScanner - Found ${normalizedJobs.length} jobs for ${jobTitle} in ${location}`)
-            
-            // Additional location filtering to ensure jobs match user preferences
-            const locationFilteredJobs = normalizedJobs.filter(job => {
-              console.log(`DEBUG - Job location: "${job.location}", User location: "${location}"`)
-              
-              if (!job.location) return formattedLocation === undefined // If no job location and we searched remote
-              
-              const jobLocation = job.location.toLowerCase()
-              const userLocation = location.toLowerCase()
-              
-              console.log(`DEBUG - Comparing: "${jobLocation}" vs "${userLocation}"`)
-              
-              // Check if job location matches user preference
-              if (location === 'Remote') {
-                return jobLocation.includes('remote') || jobLocation.includes('anywhere')
-              }
-              
-              // If job location is just country code "CA" and user is looking for Canadian locations
-              if (jobLocation === 'ca' && (userLocation.includes('canada') || userLocation.includes('toronto') || userLocation.includes('ontario'))) {
-                console.log(`DEBUG - Match result: true (Canadian job for Canadian location)`)
-                return true
-              }
-              
-              // For specific locations, check if job location contains user location
-              const match = jobLocation.includes(userLocation) || 
-                           jobLocation.includes(userLocation.split(',')[0]) // Check city name only
-              
-              console.log(`DEBUG - Match result: ${match}`)
-              return match
-            })
-            
-            console.log(`JobScanner - After location filtering: ${locationFilteredJobs.length}/${normalizedJobs.length} jobs for ${jobTitle} in ${location}`)
-            allJobs.push(...locationFilteredJobs)
+          console.log(`JobScanner - Searching: "${jobTitle}" in "${formattedLocation || 'Any location'}"`)
+          const response = await jobAPI.searchJobs(searchParams)
+          const normalizedJobs = response.jobs.map(job => this.normalizeJobToListing(job))
+          console.log(`JobScanner - Found ${normalizedJobs.length} jobs for "${jobTitle}"`)
+          
+          allJobs.push(...normalizedJobs)
 
-            // Add delay to respect rate limits
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          } catch (error) {
-            console.error(`Error searching jobs for ${jobTitle} in ${location}:`, error)
-          }
+          // Small delay between requests to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000))
+
+        } catch (error) {
+          console.error(`Error searching jobs for ${jobTitle}:`, error)
         }
       }
     } catch (error) {
@@ -237,7 +223,9 @@ export class JobScanner {
       return []
     }
 
-    return this.deduplicateJobs(allJobs)
+    const deduplicatedJobs = this.deduplicateJobs(allJobs)
+    console.log(`JobScanner - Total unique jobs after deduplication: ${deduplicatedJobs.length}`)
+    return deduplicatedJobs
   }
 
   private normalizeJobToListing(job: NormalizedJob): JobListing {
@@ -251,6 +239,7 @@ export class JobScanner {
       employmentType: this.mapEmploymentType(job.employmentType),
       source: job.source,
       sourceJobId: job.sourceJobId,
+      canAutoApply: job.source === 'indeed',
     }
   }
 
@@ -410,28 +399,9 @@ export class JobScanner {
         },
       })
 
-      // Generate cover letter for high-scoring jobs (above min threshold)
+      // Skip cover letter generation during scanning - generate when user applies
       let coverLetter = ''
-      if (matchAnalysis.matchScore >= settings.notifyMinScore) {
-        try {
-          coverLetter = await generateCoverLetter({
-            profile: {
-              fullName: profile.fullName,
-              jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
-              yearsExperience: profile.yearsExperience || 0,
-              skills: profile.skills || [],
-            },
-            job: {
-              title: job.title,
-              company: job.company,
-              description: job.description || '',
-              requirements: [],
-            },
-          })
-        } catch (error) {
-          console.error('Error generating cover letter:', error)
-        }
-      }
+      console.log(`Skipping cover letter generation during scan for: ${job.title} at ${job.company}`)
 
       await prisma.job.update({
         where: { id: job.id },
@@ -462,71 +432,17 @@ export class JobScanner {
       const expiresAt = new Date()
       expiresAt.setHours(expiresAt.getHours() + (profile.autoApplySettings?.reviewTimeoutHours || 24))
 
-      // Generate proper customized resume if enabled
+      // Don't customize resumes during job scanning - only store the flag for later
       let customizedResumeUrl = null
       if (profile.autoApplySettings?.customizeResume && profile.resumeUrl) {
-        try {
-          // Use the new structured resume customizer instead of the old service
-          const { structuredResumeCustomizer } = await import('./structuredResumeCustomizer')
-          
-          // Get structured resume data
-          const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/resume/structured`, {
-            headers: {
-              'User-ID': profile.userId
-            }
-          })
-          
-          if (response.ok) {
-            const { resumeData } = await response.json()
-            
-            const customizationResult = await structuredResumeCustomizer.customizeResumeForJob(
-              resumeData,
-              {
-                id: job.id,
-                title: job.title,
-                company: job.company,
-                description: job.description || '',
-                requirements: []
-              },
-              profile.userId
-            )
-            
-            customizedResumeUrl = customizationResult.customizedPdfUrl
-          } else {
-            throw new Error('No structured resume data available')
-          }
-          console.log(`Resume customized successfully for: ${job.title} at ${job.company}`)
-        } catch (error) {
-          console.error('Error customizing resume:', error)
-          // Fall back to original resume
-          customizedResumeUrl = profile.resumeUrl
-        }
+        // Use original resume URL for notifications - customization happens when user applies
+        customizedResumeUrl = profile.resumeUrl
+        console.log(`Resume customization enabled - will customize when user applies to: ${job.title} at ${job.company}`)
       }
 
-      // Generate proper cover letter if not provided
-      let finalCoverLetter = coverLetter
-      if (!finalCoverLetter || finalCoverLetter.trim().length === 0) {
-        try {
-          finalCoverLetter = await generateCoverLetter({
-            profile: {
-              fullName: profile.fullName,
-              skills: profile.skills || [],
-              jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
-              yearsExperience: profile.yearsExperience || 0
-            },
-            job: {
-              title: job.title,
-              company: job.company,
-              description: job.description || '',
-              requirements: []
-            }
-          })
-          console.log(`Cover letter generated for: ${job.title} at ${job.company}`)
-        } catch (error) {
-          console.error('Error generating cover letter:', error)
-          finalCoverLetter = '' // Leave empty if generation fails
-        }
-      }
+      // Don't generate cover letters during job scanning - generate them when user applies
+      let finalCoverLetter = coverLetter || ''
+      console.log(`Cover letter will be generated when user applies to: ${job.title} at ${job.company}`)
 
       console.log(`Creating notification with userId: ${profile.userId}, jobId: ${job.id}`)
       

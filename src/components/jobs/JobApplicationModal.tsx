@@ -13,8 +13,12 @@ import {
   Star,
   Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  ExternalLink,
+  Bot
 } from 'lucide-react'
+import { CheckInModal } from './CheckInModal'
+import { getJobSourceInfo } from '@/lib/jobSourceDetector'
 
 interface Job {
   id: string
@@ -26,6 +30,9 @@ interface Job {
   requirements?: string[]
   employmentType?: string
   postedDate?: string
+  source?: string
+  canAutoApply?: boolean
+  url?: string
 }
 
 interface JobApplicationModalProps {
@@ -49,6 +56,7 @@ export function JobApplicationModal({
   const [customizedResumeUrl, setCustomizedResumeUrl] = useState(jobNotification?.customizedResume || null)
   const [customizedPreviewData, setCustomizedPreviewData] = useState<any>(null)
   const [isCustomizingPreview, setIsCustomizingPreview] = useState(false)
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false)
   
   // Update state when job data changes (when modal opens with new job)
   useEffect(() => {
@@ -95,6 +103,7 @@ export function JobApplicationModal({
       return
     }
     
+    setIsGeneratingCoverLetter(true)
     try {
       const response = await fetch('/api/generate-cover-letter', {
         method: 'POST',
@@ -116,11 +125,14 @@ export function JobApplicationModal({
       }
     } catch (error) {
       console.error('Failed to generate cover letter:', error)
+    } finally {
+      setIsGeneratingCoverLetter(false)
     }
   }
   const [isApplying, setIsApplying] = useState(false)
   const [applicationResult, setApplicationResult] = useState<any>(null)
   const [showReview, setShowReview] = useState(false)
+  const [showCheckInModal, setShowCheckInModal] = useState(false)
 
   // Generate actual customized resume when review modal opens
   const generateCustomizedResume = async () => {
@@ -197,18 +209,24 @@ export function JobApplicationModal({
     }
   }
 
-  // Trigger customization when review modal opens
+  // Trigger customization when review modal opens OR when manual apply modal opens
   useEffect(() => {
-    console.log('=== REVIEW MODAL USEEFFECT ===')
+    console.log('=== CUSTOMIZATION USEEFFECT ===')
     console.log('showReview:', showReview)
+    console.log('isOpen:', isOpen)
+    console.log('job.canAutoApply:', job?.canAutoApply)
     console.log('customizedResumeUrl:', customizedResumeUrl)
     console.log('customizeResume:', customizeResume)
     console.log('job exists:', !!job)
     console.log('userResumeData exists:', !!userResumeData)
     
-    if (showReview && customizeResume && job && userResumeData) {
-      // Always clear any existing URL when review modal opens to force fresh customization
-      console.log('REVIEW MODAL OPENED - Forcing fresh customization')
+    // Trigger customization for review modal OR for manual apply jobs when modal opens
+    const shouldCustomize = (showReview || (isOpen && job?.canAutoApply === false)) && 
+                           customizeResume && job && userResumeData
+    
+    if (shouldCustomize) {
+      // Always clear any existing URL to force fresh customization
+      console.log('MODAL OPENED - Forcing fresh customization')
       
       if (customizedResumeUrl) {
         console.log('Clearing existing URL to force fresh generation:', customizedResumeUrl)
@@ -223,21 +241,128 @@ export function JobApplicationModal({
       }, 100)
     } else {
       console.log('CONDITIONS NOT MET for customization')
-      if (!showReview) console.log('- showReview is false')
+      if (!showReview && !(isOpen && job?.canAutoApply === false)) console.log('- Not in review mode or manual apply mode')
       if (!customizeResume) console.log('- customizeResume is false')
       if (!job) console.log('- job is null')
       if (!userResumeData) console.log('- userResumeData is null')
     }
-  }, [showReview]) // Only depend on showReview to always trigger when modal opens
+  }, [showReview, isOpen, job?.canAutoApply]) // Depend on relevant state changes
+
+  const handleClose = () => {
+    setApplicationResult(null)
+    setCoverLetter('')
+    setCustomizeResume(true)
+    setShowReview(false)
+    onClose()
+  }
 
   if (!isOpen || !job) return null
+
+  // Debug job properties
+  console.log('=== JOB MODAL DEBUG ===')
+  console.log('job.canAutoApply:', job.canAutoApply)
+  console.log('job.source:', job.source)
+  console.log('job.sourceInfo:', job.sourceInfo)
+  console.log('job.url:', job.url)
+  
+  // For auto-apply jobs with direct automation (Indeed), show automation flow
+  if (job.canAutoApply === true && job.automationType === 'direct' && !showCheckInModal) {
+    console.log('Indeed auto-apply job - implementing direct automation')
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <Card className="max-w-md w-full">
+          <div className="p-6 text-center">
+            <Bot className="h-16 w-16 text-blue-600 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-blue-700 mb-2">Indeed Auto-Apply</h2>
+            <p className="text-gray-600 mb-6">
+              This job supports Indeed's Quick Apply feature. Note: Indeed automation is not fully implemented yet.
+            </p>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">Feature In Development</p>
+                  <p>Indeed automation is being developed. For now, you'll be redirected to apply manually on Indeed's website.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  // Open Indeed job in new tab for manual application
+                  window.open(job.url, '_blank')
+                  handleClose()
+                }} 
+                className="w-full"
+              >
+                Apply on Indeed Website
+              </Button>
+              <Button onClick={handleClose} variant="outline" className="w-full">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // For manual apply jobs, show CheckInModal directly (skip review modal entirely)
+  if (job.canAutoApply === false && !showCheckInModal) {
+    return (
+      <>
+        <CheckInModal
+          job={job}
+          isOpen={true}
+          onClose={handleClose}
+          customizedResumeUrl={customizedResumeUrl}
+          coverLetter={coverLetter}
+          initialStep="instructions" // Start with instructions for direct flow
+          isCustomizingResume={isCustomizingPreview}
+          isGeneratingCoverLetter={isGeneratingCoverLetter}
+          onApplicationUpdate={(applicationData) => {
+            console.log('Application updated via CheckInModal:', applicationData)
+            handleClose()
+          }}
+        />
+      </>
+    )
+  }
+
+  // Show CheckInModal independently when it's open (for other flows)
+  if (showCheckInModal) {
+    return (
+      <>
+        <CheckInModal
+          job={job}
+          isOpen={showCheckInModal}
+          onClose={() => {
+            setShowCheckInModal(false)
+            handleClose()
+          }}
+          customizedResumeUrl={customizedResumeUrl}
+          coverLetter={coverLetter}
+          initialStep="check_in"
+          isCustomizingResume={isCustomizingPreview}
+          isGeneratingCoverLetter={isGeneratingCoverLetter}
+          onApplicationUpdate={(applicationData) => {
+            console.log('Application updated via CheckInModal:', applicationData)
+            setShowCheckInModal(false)
+            handleClose()
+          }}
+        />
+      </>
+    )
+  }
 
   const handleApply = async () => {
     console.log('=== HANDLE APPLY CALLED ===')
     console.log('userResumeData:', userResumeData)
     console.log('job:', job)
-    console.log('coverLetter:', coverLetter)
-    console.log('customizeResume:', customizeResume)
+    console.log('canAutoApply:', job?.canAutoApply)
     
     if (!userResumeData) {
       console.log('ERROR: No userResumeData, showing alert')
@@ -245,8 +370,18 @@ export function JobApplicationModal({
       return
     }
 
+    // Manual apply jobs now go directly to CheckInModal, so this function shouldn't be called
+    if (job?.canAutoApply === false) {
+      console.warn('handleApply called for manual apply job - this should not happen')
+      return
+    }
+
+    // For auto-apply jobs, use the existing logic
+    const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
+    const isIndeedJob = sourceInfo.source === 'INDEED'
+    const isExternalJob = sourceInfo.source === 'OTHER'
     setIsApplying(true)
-    console.log('Setting isApplying to true, attempting automated application...')
+    console.log('Setting isApplying to true, attempting application...')
     
     try {
       console.log('Making fetch request to /api/jobs/apply-automated')
@@ -255,7 +390,7 @@ export function JobApplicationModal({
         resumeData: userResumeData,
         customizedResumeUrl: customizeResume ? customizedResumeUrl : null,
         coverLetter,
-        useAutomation: true
+        useAutomation: isIndeedJob // Only use automation for Indeed jobs
       })
       
       const response = await fetch('/api/jobs/apply-automated', {
@@ -267,7 +402,7 @@ export function JobApplicationModal({
           resumeData: userResumeData,
           customizedResumeUrl: customizeResume ? customizedResumeUrl : null,
           coverLetter,
-          useAutomation: true
+          useAutomation: isIndeedJob // Only use automation for Indeed jobs
         })
       })
 
@@ -277,39 +412,45 @@ export function JobApplicationModal({
       const result = await response.json()
       console.log('Response data:', result)
       
-      if (response.ok && result.success && result.method === 'automated') {
-        // Successful automation
-        console.log('✅ Automated application successful!')
-        setApplicationResult({
-          ...result.data,
-          method: 'automated',
-          platform: result.platform
-        })
-        
-        alert(`🎉 Application submitted successfully via automation!\nConfirmation: ${result.data.confirmationId || 'N/A'}`)
-        
-      } else if (result.redirectUrl) {
-        // Automation failed, redirect to manual application
-        console.log('⚠️ Automation failed, redirecting to manual application')
-        
-        // Show user the redirect option
-        const shouldRedirect = confirm(
-          `Automated application wasn't available for this job.\n\nWould you like to open the job application page to apply manually?\n\nYour customized resume and cover letter will be available for download.`
-        )
-        
-        if (shouldRedirect) {
-          // Open job application in new tab
-          window.open(result.redirectUrl, '_blank')
-          
-          // Mark as attempted (but not completed)
+      if (response.ok && result.success) {
+        if (result.method === 'automated' && isIndeedJob) {
+          // Successful automation for Indeed jobs
+          console.log('✅ Automated application successful!')
           setApplicationResult({
-            method: 'redirect',
-            platform: result.platform,
-            message: 'Redirected to manual application',
-            redirectUrl: result.redirectUrl,
-            resumeUrl: customizedResumeUrl,
-            coverLetter: coverLetter
+            ...result.data,
+            method: 'automated',
+            platform: result.platform
           })
+          
+          alert(`🎉 Application submitted successfully via automation!\nConfirmation: ${result.data.confirmationId || 'N/A'}`)
+          
+        } else {
+          // For non-Indeed jobs OR when automation fails
+          console.log('📄 Materials prepared, checking job source for next action')
+          
+          if (isExternalJob) {
+            // For external/other jobs, show CheckInModal for manual application tracking
+            console.log('External job detected, showing CheckInModal')
+            setCustomizedResumeUrl(result.customizedResumeUrl || customizedResumeUrl)
+            setCoverLetter(result.coverLetter || coverLetter)
+            setShowReview(false) // Close the main modal
+            setShowCheckInModal(true)
+          } else {
+            // For other automation platforms (Greenhouse/Lever), show standard result
+            setApplicationResult({
+              method: 'redirect',
+              platform: result.platform || 'external',
+              message: `Your application materials are ready for ${job.company}`,
+              redirectUrl: result.redirectUrl || job.url,
+              resumeUrl: result.customizedResumeUrl || customizedResumeUrl,
+              coverLetter: result.coverLetter || coverLetter,
+              matchScore: result.matchScore,
+              keywordMatches: result.keywordMatches,
+              customizationNotes: result.customizationNotes,
+              jobTitle: job.title,
+              company: job.company
+            })
+          }
         }
         
       } else {
@@ -319,18 +460,10 @@ export function JobApplicationModal({
       
     } catch (error) {
       console.error('Application error:', error)
-      alert(`Failed to submit application: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`Failed to process application: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsApplying(false)
     }
-  }
-
-  const handleClose = () => {
-    setApplicationResult(null)
-    setCoverLetter('')
-    setCustomizeResume(true)
-    setShowReview(false)
-    onClose()
   }
 
   if (applicationResult) {
@@ -795,7 +928,42 @@ export function JobApplicationModal({
 
               {/* Cover Letter Preview */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Cover Letter</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">Cover Letter</h3>
+                  {coverLetter.trim() && (
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Download as text file
+                          const blob = new Blob([coverLetter], { type: 'text/plain' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `${job.company}_${job.title}_Cover_Letter.txt`
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          URL.revokeObjectURL(url)
+                        }}
+                      >
+                        Download
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Copy to clipboard
+                          navigator.clipboard.writeText(coverLetter)
+                          alert('Cover letter copied to clipboard!')
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 {coverLetter.trim() ? (
                   <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                     <div className="text-sm whitespace-pre-wrap leading-relaxed">
@@ -840,8 +1008,17 @@ export function JobApplicationModal({
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Submit Application
+                      {job?.canAutoApply === false ? (
+                        <>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Continue to Job Site
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Submit Application
+                        </>
+                      )}
                     </>
                   )}
                 </Button>
@@ -1053,8 +1230,17 @@ export function JobApplicationModal({
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Quick Apply (Recommended)
+                          {job?.canAutoApply === false ? (
+                            <>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Apply on Company Site
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Quick Apply (Recommended)
+                            </>
+                          )}
                         </>
                       )}
                     </Button>
@@ -1073,6 +1259,7 @@ export function JobApplicationModal({
           </div>
         </div>
       </Card>
+
     </div>
   )
 }

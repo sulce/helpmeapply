@@ -15,8 +15,9 @@ import { DashboardOverview } from '@/components/dashboard/DashboardOverview'
 import { PerformanceAnalytics } from '@/components/dashboard/PerformanceAnalytics'
 import { ResumeAnalytics } from '@/components/dashboard/ResumeAnalytics'
 import { AIInsights } from '@/components/dashboard/AIInsights'
+import { InterviewHistory } from '@/components/interview/InterviewHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
-import { User, Settings, Search, FileText, BarChart3, Upload, Zap, RefreshCw, Home, Target, Brain } from 'lucide-react'
+import { User, Settings, Search, FileText, BarChart3, Upload, Zap, RefreshCw, Home, Target, Brain, Mic } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { shouldShowOnboarding, calculateProfileCompletion, parseProfileData } from '@/lib/profileCompletion'
@@ -312,6 +313,10 @@ export default function DashboardPage() {
                   <Brain className="h-4 w-4" />
                   <span>AI Insights</span>
                 </TabsTrigger>
+                <TabsTrigger value="interviews" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
+                  <Mic className="h-4 w-4" />
+                  <span>Interview Practice</span>
+                </TabsTrigger>
                 <TabsTrigger value="applications" className="flex items-center space-x-2 pb-3 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
                   <BarChart3 className="h-4 w-4" />
                   <span>Applications</span>
@@ -388,6 +393,27 @@ export default function DashboardPage() {
 
             <TabsContent value="insights">
               <AIInsights />
+            </TabsContent>
+
+            <TabsContent value="interviews">
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Interview Practice</h3>
+                  <p className="text-gray-600 mb-4">
+                    Practice interviews for your job applications with AI-powered questions and feedback.
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">How it works:</h4>
+                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>Click &quot;Practice Interview&quot; on any job application</li>
+                      <li>Answer AI-generated questions based on the job description</li>
+                      <li>Get real-time feedback on your responses</li>
+                      <li>Track your progress and improvement over time</li>
+                    </ol>
+                  </div>
+                </div>
+                <InterviewHistory />
+              </div>
             </TabsContent>
 
             <TabsContent value="applications">

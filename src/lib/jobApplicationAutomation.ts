@@ -88,6 +88,17 @@ export class JobApplicationAutomation {
         case 'greenhouse.io':
           return await this.applyToGreenhouse(jobUrl, applicationData)
         
+        case 'lever':
+        case 'lever.co':
+          return await this.applyToLever(jobUrl, applicationData)
+        
+        case 'linkedin':
+        case 'linkedin.com':
+          return await this.applyToLinkedIn(jobUrl, applicationData)
+        
+        case 'workday':
+          return await this.applyToWorkday(jobUrl, applicationData)
+        
         default:
           console.log(`Unsupported platform: ${jobPublisher}, falling back to redirect`)
           return {
@@ -782,6 +793,519 @@ export class JobApplicationAutomation {
     } catch (error) {
       console.log('Could not find Greenhouse confirmation, but application may have succeeded')
       return 'GREENHOUSE_SUBMITTED_NO_CONFIRMATION'
+    }
+  }
+
+  // Lever automation implementation
+  private async applyToLever(jobUrl: string, data: ApplicationData): Promise<ApplicationResult> {
+    if (!this.browser) throw new Error('Browser not initialized')
+    
+    const page = await this.browser.newPage()
+    
+    try {
+      console.log('Starting Lever application automation...')
+      
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+      
+      console.log('Navigating to Lever job page:', jobUrl)
+      await page.goto(jobUrl, { waitUntil: 'networkidle2', timeout: 30000 })
+      
+      // Wait for Lever application form to load
+      await page.waitForSelector('.application-form, .lever-form, form[data-qa="application-form"]', { timeout: 15000 })
+      
+      console.log('Lever application form detected')
+      
+      // Fill out the Lever application form
+      await this.fillLeverApplicationForm(page, data)
+      
+      // Submit the application
+      const submitted = await this.submitLeverApplication(page)
+      
+      if (submitted) {
+        const confirmationId = await this.getLeverConfirmationId(page)
+        
+        return {
+          success: true,
+          platform: 'lever',
+          method: 'automated',
+          confirmationId: confirmationId || 'LEVER_SUCCESS'
+        }
+      } else {
+        throw new Error('Failed to submit Lever application')
+      }
+
+    } catch (error) {
+      console.error('Lever automation error:', error)
+      
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          await page.screenshot({ path: `debug-lever-${Date.now()}.png` })
+        } catch (screenshotError) {
+          console.error('Failed to take debug screenshot:', screenshotError)
+        }
+      }
+      
+      return {
+        success: false,
+        platform: 'lever',
+        method: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown Lever error',
+        redirectUrl: jobUrl
+      }
+    } finally {
+      await page.close()
+    }
+  }
+
+  private async fillLeverApplicationForm(page: Page, data: ApplicationData): Promise<void> {
+    console.log('Filling Lever application form...')
+
+    // Lever often uses a single name field or separate first/last
+    const nameSelectors = [
+      'input[name="name"]',
+      'input[placeholder*="Full name" i]',
+      'input[placeholder*="Name" i]'
+    ]
+    
+    const firstNameSelectors = [
+      'input[name="first_name"]',
+      'input[placeholder*="First name" i]'
+    ]
+    
+    const lastNameSelectors = [
+      'input[name="last_name"]', 
+      'input[placeholder*="Last name" i]'
+    ]
+
+    // Try full name first
+    const hasFullName = await this.fillFirstFoundInput(page, nameSelectors, data.fullName, 'Full Name')
+    
+    if (!hasFullName) {
+      // Try separate first/last name fields
+      const firstName = data.fullName.split(' ')[0]
+      const lastName = data.fullName.split(' ').slice(1).join(' ')
+      await this.fillFirstFoundInput(page, firstNameSelectors, firstName, 'First Name')
+      await this.fillFirstFoundInput(page, lastNameSelectors, lastName, 'Last Name')
+    }
+
+    // Email
+    const emailSelectors = [
+      'input[name="email"]',
+      'input[type="email"]',
+      'input[placeholder*="email" i]'
+    ]
+    await this.fillFirstFoundInput(page, emailSelectors, data.email, 'Email')
+
+    // Phone
+    const phoneSelectors = [
+      'input[name="phone"]',
+      'input[type="tel"]',
+      'input[placeholder*="phone" i]'
+    ]
+    await this.fillFirstFoundInput(page, phoneSelectors, data.phone, 'Phone')
+
+    // Resume upload
+    await this.uploadResumeToLever(page, data.resumeUrl)
+
+    // Cover letter/additional information
+    if (data.coverLetter) {
+      const coverLetterSelectors = [
+        'textarea[name="additional_information"]',
+        'textarea[name="comments"]',
+        'textarea[placeholder*="cover" i]',
+        'textarea[placeholder*="additional" i]'
+      ]
+      await this.fillFirstFoundInput(page, coverLetterSelectors, data.coverLetter, 'Cover Letter')
+    }
+
+    // LinkedIn profile
+    if (data.linkedinProfile) {
+      const linkedinSelectors = [
+        'input[name="linkedin"]',
+        'input[placeholder*="linkedin" i]',
+        'input[name="social_profile"]'
+      ]
+      await this.fillFirstFoundInput(page, linkedinSelectors, data.linkedinProfile, 'LinkedIn Profile')
+    }
+
+    console.log('✓ Lever form filling completed')
+  }
+
+  private async uploadResumeToLever(page: Page, resumeUrl: string): Promise<void> {
+    console.log('Attempting to upload resume to Lever...')
+    
+    try {
+      const response = await fetch(resumeUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to download resume: ${response.status}`)
+      }
+      
+      const resumeBuffer = await response.arrayBuffer()
+      const fs = await import('fs/promises')
+      const path = await import('path')
+      const os = await import('os')
+      
+      const tempDir = os.tmpdir()
+      const tempFilePath = path.join(tempDir, `resume-lever-${Date.now()}.pdf`)
+      await fs.writeFile(tempFilePath, Buffer.from(resumeBuffer))
+      
+      const fileInputSelectors = [
+        'input[type="file"]',
+        'input[name="resume"]',
+        'input[accept*="pdf" i]',
+        '.file-upload input'
+      ]
+
+      for (const selector of fileInputSelectors) {
+        try {
+          const fileInput = await page.$(selector) as any
+          if (fileInput) {
+            console.log(`Found Lever file input: ${selector}`)
+            await fileInput.uploadFile(tempFilePath)
+            console.log('✓ Lever resume uploaded successfully')
+            
+            await fs.unlink(tempFilePath)
+            return
+          }
+        } catch (error) {
+          console.log(`Lever file upload selector ${selector} failed:`, error)
+          continue
+        }
+      }
+      
+      await fs.unlink(tempFilePath)
+      console.log('⚠️ No Lever file upload input found')
+      
+    } catch (error) {
+      console.error('Lever resume upload failed:', error)
+    }
+  }
+
+  private async submitLeverApplication(page: Page): Promise<boolean> {
+    console.log('Attempting to submit Lever application...')
+    
+    const submitSelectors = [
+      'button[type="submit"]',
+      'input[type="submit"]',
+      'button:has-text("Submit Application")',
+      'button:has-text("Submit")',
+      '.submit-btn',
+      '[data-qa="submit-application"]'
+    ]
+
+    for (const selector of submitSelectors) {
+      try {
+        const button = await page.$(selector)
+        if (button) {
+          console.log(`Found Lever submit button: ${selector}`)
+          
+          const isDisabled = await button.evaluate((el: any) => el.disabled)
+          if (isDisabled) {
+            console.log('Submit button is disabled, checking for required fields...')
+            continue
+          }
+          
+          await button.click()
+          console.log('✓ Lever submit button clicked')
+          
+          await page.waitForTimeout(3000)
+          return true
+        }
+      } catch (error) {
+        console.log(`Lever submit selector ${selector} failed:`, error)
+        continue
+      }
+    }
+    
+    console.log('⚠️ Could not find or click Lever submit button')
+    return false
+  }
+
+  private async getLeverConfirmationId(page: Page): Promise<string | null> {
+    try {
+      // Wait for confirmation page or success message
+      await page.waitForSelector('.confirmation, .thank-you, .success, .submitted', { timeout: 10000 })
+      
+      const confirmationSelectors = [
+        '.confirmation-id',
+        '.application-id',
+        '.reference-id',
+        '[data-qa="confirmation"]'
+      ]
+      
+      for (const selector of confirmationSelectors) {
+        const element = await page.$(selector)
+        if (element) {
+          const confirmationId = await element.evaluate((el: any) => el.textContent)
+          if (confirmationId) {
+            console.log('✓ Found Lever confirmation ID:', confirmationId)
+            return confirmationId.trim()
+          }
+        }
+      }
+      
+      const currentUrl = page.url()
+      if (currentUrl.includes('thank') || currentUrl.includes('submitted') || currentUrl.includes('confirmation')) {
+        console.log('✓ Lever application submitted successfully (URL confirmation)')
+        return 'LEVER_SUBMITTED_SUCCESS'
+      }
+      
+      return 'LEVER_APPLICATION_SUBMITTED'
+      
+    } catch (error) {
+      console.log('Could not find Lever confirmation, but application may have succeeded')
+      return 'LEVER_SUBMITTED_NO_CONFIRMATION'
+    }
+  }
+
+  // LinkedIn automation implementation  
+  private async applyToLinkedIn(jobUrl: string, data: ApplicationData): Promise<ApplicationResult> {
+    if (!this.browser) throw new Error('Browser not initialized')
+    
+    const page = await this.browser.newPage()
+    
+    try {
+      console.log('Starting LinkedIn application automation...')
+      
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+      
+      console.log('Navigating to LinkedIn job page:', jobUrl)
+      await page.goto(jobUrl, { waitUntil: 'networkidle2', timeout: 30000 })
+      
+      // Check if user needs to be logged in
+      const needsLogin = await page.$('.authwall, .guest-signin')
+      if (needsLogin) {
+        return {
+          success: false,
+          platform: 'linkedin',
+          method: 'redirect',
+          redirectUrl: jobUrl,
+          error: 'LinkedIn requires authentication - please apply manually'
+        }
+      }
+      
+      // Look for Easy Apply button
+      const easyApplyButton = await page.$('.jobs-apply-button, [aria-label*="Easy Apply"], [data-control-name="jobdetails_topcard_inapply"]')
+      if (!easyApplyButton) {
+        return {
+          success: false,
+          platform: 'linkedin',
+          method: 'redirect',
+          redirectUrl: jobUrl,
+          error: 'LinkedIn Easy Apply not available for this job'
+        }
+      }
+      
+      console.log('Found LinkedIn Easy Apply button')
+      await easyApplyButton.click()
+      
+      // Wait for application modal to load
+      await page.waitForSelector('.jobs-easy-apply-modal, .apply-modal', { timeout: 15000 })
+      
+      // Fill out LinkedIn Easy Apply form
+      await this.fillLinkedInEasyApplyForm(page, data)
+      
+      // Submit the application
+      const submitted = await this.submitLinkedInApplication(page)
+      
+      if (submitted) {
+        return {
+          success: true,
+          platform: 'linkedin',
+          method: 'automated',
+          confirmationId: 'LINKEDIN_EASY_APPLY_SUCCESS'
+        }
+      } else {
+        throw new Error('Failed to submit LinkedIn application')
+      }
+
+    } catch (error) {
+      console.error('LinkedIn automation error:', error)
+      
+      return {
+        success: false,
+        platform: 'linkedin',
+        method: 'redirect',
+        error: 'LinkedIn automation failed - please apply manually',
+        redirectUrl: jobUrl
+      }
+    } finally {
+      await page.close()
+    }
+  }
+
+  private async fillLinkedInEasyApplyForm(page: Page, data: ApplicationData): Promise<void> {
+    console.log('Filling LinkedIn Easy Apply form...')
+    
+    // LinkedIn Easy Apply forms are usually pre-filled with profile data
+    // We mainly need to handle additional questions and file uploads
+    
+    // Check for resume upload
+    const resumeUploadSelector = 'input[type="file"][accept*="pdf"], .file-input, .resume-upload input'
+    const resumeUpload = await page.$(resumeUploadSelector)
+    if (resumeUpload && data.resumeUrl) {
+      await this.uploadResumeToLinkedIn(page, data.resumeUrl)
+    }
+    
+    // Handle cover letter if there's a text area
+    if (data.coverLetter) {
+      const coverLetterSelectors = [
+        'textarea[name="coverLetter"]',
+        'textarea[placeholder*="cover letter" i]',
+        'textarea[aria-label*="cover letter" i]'
+      ]
+      await this.fillFirstFoundInput(page, coverLetterSelectors, data.coverLetter, 'Cover Letter')
+    }
+    
+    // Handle any additional questions (these vary by job posting)
+    await this.handleLinkedInAdditionalQuestions(page)
+    
+    console.log('✓ LinkedIn form filling completed')
+  }
+
+  private async uploadResumeToLinkedIn(page: Page, resumeUrl: string): Promise<void> {
+    try {
+      const response = await fetch(resumeUrl)
+      if (!response.ok) return
+      
+      const resumeBuffer = await response.arrayBuffer()
+      const fs = await import('fs/promises')
+      const path = await import('path')
+      const os = await import('os')
+      
+      const tempDir = os.tmpdir()
+      const tempFilePath = path.join(tempDir, `resume-linkedin-${Date.now()}.pdf`)
+      await fs.writeFile(tempFilePath, Buffer.from(resumeBuffer))
+      
+      const fileInput = await page.$('input[type="file"]') as any
+      if (fileInput) {
+        await fileInput.uploadFile(tempFilePath)
+        console.log('✓ LinkedIn resume uploaded successfully')
+      }
+      
+      await fs.unlink(tempFilePath)
+    } catch (error) {
+      console.error('LinkedIn resume upload failed:', error)
+    }
+  }
+
+  private async handleLinkedInAdditionalQuestions(page: Page): Promise<void> {
+    // Handle common LinkedIn Easy Apply questions
+    const questions = await page.$$('.jobs-easy-apply-form-section')
+    
+    for (const question of questions) {
+      try {
+        const questionText = await question.$eval('.jobs-easy-apply-form-element__label', (el: any) => el.textContent?.toLowerCase() || '')
+        
+        if (questionText.includes('years of experience')) {
+          const input = await question.$('input[type="number"], select')
+          if (input) {
+            await input.click()
+            await input.type('3') // Default experience
+          }
+        }
+        
+        if (questionText.includes('require sponsorship') || questionText.includes('work authorization')) {
+          const select = await question.$('select')
+          if (select) {
+            await select.selectOption({ label: 'No' })
+          }
+        }
+        
+        if (questionText.includes('willing to relocate')) {
+          const select = await question.$('select')
+          if (select) {
+            await select.selectOption({ label: 'Yes' })
+          }
+        }
+      } catch (error) {
+        console.log('Error handling LinkedIn question:', error)
+        continue
+      }
+    }
+  }
+
+  private async submitLinkedInApplication(page: Page): Promise<boolean> {
+    const submitSelectors = [
+      'button[aria-label*="Submit application"]',
+      'button[data-control-name="submit_unify"]',
+      'button:has-text("Submit application")',
+      '.jobs-apply-button--top-card'
+    ]
+
+    for (const selector of submitSelectors) {
+      try {
+        const button = await page.$(selector)
+        if (button) {
+          await button.click()
+          console.log('✓ LinkedIn submit button clicked')
+          
+          // Handle potential additional steps (LinkedIn sometimes has multi-step applications)
+          await page.waitForTimeout(2000)
+          
+          // Check if there's a "Next" button (multi-step form)
+          const nextButton = await page.$('button[aria-label*="Continue"], button:has-text("Next")')
+          if (nextButton) {
+            await nextButton.click()
+            await page.waitForTimeout(2000)
+          }
+          
+          return true
+        }
+      } catch (error) {
+        console.log(`LinkedIn submit selector ${selector} failed:`, error)
+        continue
+      }
+    }
+    
+    return false
+  }
+
+  // Workday automation implementation
+  private async applyToWorkday(jobUrl: string, data: ApplicationData): Promise<ApplicationResult> {
+    if (!this.browser) throw new Error('Browser not initialized')
+    
+    const page = await this.browser.newPage()
+    
+    try {
+      console.log('Starting Workday application automation...')
+      
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+      
+      console.log('Navigating to Workday job page:', jobUrl)
+      await page.goto(jobUrl, { waitUntil: 'networkidle2', timeout: 30000 })
+      
+      // Look for Apply button
+      const applyButton = await page.$('[data-automation-id="apply"], .css-1psuvjl, button:has-text("Apply")')
+      if (!applyButton) {
+        throw new Error('Could not find Workday Apply button')
+      }
+      
+      await applyButton.click()
+      await page.waitForTimeout(3000)
+      
+      // Workday often requires creating an account first - this is complex to automate
+      // For now, we'll return a redirect result for Workday applications
+      return {
+        success: false,
+        platform: 'workday',
+        method: 'redirect',
+        redirectUrl: jobUrl,
+        error: 'Workday applications require manual completion due to account creation requirements'
+      }
+
+    } catch (error) {
+      console.error('Workday automation error:', error)
+      
+      return {
+        success: false,
+        platform: 'workday',
+        method: 'redirect',
+        error: 'Workday automation not yet supported - please apply manually',
+        redirectUrl: jobUrl
+      }
+    } finally {
+      await page.close()
     }
   }
 }

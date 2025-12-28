@@ -18,7 +18,8 @@ const automatedApplySchema = z.object({
   }),
   customizedResumeUrl: z.string().optional(),
   coverLetter: z.string().optional(),
-  useAutomation: z.boolean().default(true)
+  useAutomation: z.boolean().default(true),
+  prepareOnly: z.boolean().default(false)
 })
 
 export async function POST(req: NextRequest) {
@@ -35,14 +36,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { jobId, resumeData, customizedResumeUrl, coverLetter, useAutomation } = automatedApplySchema.parse(body)
+    const { jobId, resumeData, customizedResumeUrl, coverLetter, useAutomation, prepareOnly } = automatedApplySchema.parse(body)
     
     console.log('Automated application request:', {
       jobId,
       user: session.user.id,
       hasResumeUrl: !!customizedResumeUrl,
       hasCoverLetter: !!coverLetter,
-      useAutomation
+      useAutomation,
+      prepareOnly
     })
 
     // Get job details
@@ -73,6 +75,21 @@ export async function POST(req: NextRequest) {
       error?: string;
     }
     
+    // For manual apply jobs, just prepare materials and return
+    if (prepareOnly) {
+      console.log('Prepare-only mode - just returning materials without applying')
+      
+      return NextResponse.json({
+        success: true,
+        method: 'prepared',
+        customizedResumeUrl: customizedResumeUrl,
+        coverLetter: coverLetter,
+        message: 'Application materials prepared successfully',
+        jobTitle: job.title,
+        company: job.company
+      })
+    }
+
     if (useAutomation && job.url && job.source) {
       // Attempt automated application
       console.log('Attempting automated application...')

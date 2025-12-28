@@ -474,8 +474,25 @@ export class ResumeCustomizationService {
     const experience = profile.yearsExperience || 'experienced'
     const mainSkills = relevantSkills.slice(0, 3).map(s => s.skill).join(', ')
     const jobTitle = job.title
+    const roleType = profile.jobTitlePrefs[0] || 'professional'
     
-    return `${experience === 'experienced' ? 'Experienced' : experience + '+ years'} ${profile.jobTitlePrefs[0] || 'software professional'} with expertise in ${mainSkills}. Proven track record in delivering high-quality solutions for ${job.company}-type organizations. Seeking to contribute technical expertise and leadership skills to the ${jobTitle} position.`
+    // Create a concise, multi-sentence summary to avoid truncation
+    const sentences = []
+    
+    // Experience sentence
+    if (experience === 'experienced') {
+      sentences.push(`Experienced ${roleType} with expertise in ${mainSkills}.`)
+    } else {
+      sentences.push(`${experience}+ years ${roleType} with expertise in ${mainSkills}.`)
+    }
+    
+    // Value proposition sentence
+    sentences.push(`Proven track record in delivering high-quality solutions.`)
+    
+    // Goal sentence
+    sentences.push(`Seeking to contribute technical expertise to the ${jobTitle} position at ${job.company}.`)
+    
+    return sentences.join(' ')
   }
 
   private prioritizeSkillsForJob(

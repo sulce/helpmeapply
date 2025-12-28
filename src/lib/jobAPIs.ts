@@ -165,6 +165,8 @@ export type JobDetailsResponse = z.infer<typeof jobDetailsResponseSchema>
 export interface NormalizedJob {
   sourceJobId: string
   source: string
+  originalSource?: string
+  sourceInfo?: any // JobSourceInfo from jobSourceDetector
   title: string
   company: string
   description: string
@@ -338,30 +340,38 @@ export class JSearchAPI {
       
       const validatedResponse = jobSearchResponseSchema.parse(response)
 
-      const normalizedJobs: NormalizedJob[] = validatedResponse.data.map(job => ({
-        sourceJobId: job.job_id,
-        source: 'jsearch',
-        title: job.job_title,
-        company: job.employer_name,
-        description: job.job_description,
-        url: job.job_apply_link,
-        location: job.job_city && job.job_state 
-          ? `${job.job_city}, ${job.job_state}` 
-          : job.job_city || job.job_state || job.job_country,
-        salaryRange: job.job_min_salary && job.job_max_salary
-          ? `$${job.job_min_salary.toLocaleString()} - $${job.job_max_salary.toLocaleString()}`
-          : job.job_min_salary
-          ? `From $${job.job_min_salary.toLocaleString()}`
-          : job.job_max_salary
-          ? `Up to $${job.job_max_salary.toLocaleString()}`
-          : undefined,
-        employmentType: job.job_employment_type,
-        isRemote: job.job_is_remote,
-        postedAt: job.job_posted_at_datetime_utc ? new Date(job.job_posted_at_datetime_utc) : undefined,
-        expiresAt: job.job_offer_expiration_datetime_utc ? new Date(job.job_offer_expiration_datetime_utc) : undefined,
-        requirements: job.job_required_skills || [],
-        benefits: job.job_benefits || [],
-      }))
+      const normalizedJobs: NormalizedJob[] = validatedResponse.data.map(job => {
+        // Use enhanced job source detection
+        const { detectJobSource, getJobSourceInfo } = require('./jobSourceDetector')
+        const sourceInfo = getJobSourceInfo(job.job_apply_link)
+        
+        return {
+          sourceJobId: job.job_id,
+          source: sourceInfo.source.toLowerCase(),
+          originalSource: sourceInfo.source.toLowerCase(),
+          sourceInfo: sourceInfo,
+          title: job.job_title,
+          company: job.employer_name,
+          description: job.job_description,
+          url: job.job_apply_link,
+          location: job.job_city && job.job_state 
+            ? `${job.job_city}, ${job.job_state}` 
+            : job.job_city || job.job_state || job.job_country,
+          salaryRange: job.job_min_salary && job.job_max_salary
+            ? `$${job.job_min_salary.toLocaleString()} - $${job.job_max_salary.toLocaleString()}`
+            : job.job_min_salary
+            ? `From $${job.job_min_salary.toLocaleString()}`
+            : job.job_max_salary
+            ? `Up to $${job.job_max_salary.toLocaleString()}`
+            : undefined,
+          employmentType: job.job_employment_type,
+          isRemote: job.job_is_remote,
+          postedAt: job.job_posted_at_datetime_utc ? new Date(job.job_posted_at_datetime_utc) : undefined,
+          expiresAt: job.job_offer_expiration_datetime_utc ? new Date(job.job_offer_expiration_datetime_utc) : undefined,
+          requirements: job.job_required_skills || [],
+          benefits: job.job_benefits || [],
+        }
+      })
 
       return {
         jobs: normalizedJobs,
