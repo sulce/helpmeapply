@@ -42,6 +42,7 @@ interface Job {
   appliedTo: boolean
   createdAt: string
   canAutoApply?: boolean
+  automationType?: string
 }
 
 interface ScanStatus {
