@@ -20,7 +20,7 @@ interface Job {
   id: string
   title: string
   company: string
-  url: string
+  url?: string
   source: string
   sourceInfo?: any
 }
