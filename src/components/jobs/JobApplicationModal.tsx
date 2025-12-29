@@ -34,6 +34,8 @@ interface Job {
   source?: string
   canAutoApply?: boolean
   url?: string
+  sourceInfo?: any
+  automationType?: string
 }
 
 interface JobApplicationModalProps {
