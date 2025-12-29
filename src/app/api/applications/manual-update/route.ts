@@ -116,8 +116,7 @@ export async function POST(request: NextRequest) {
         id: application.id,
         status: application.status,
         appliedAt: application.appliedAt,
-        notes: application.notes,
-        referenceNumber: application.referenceNumber
+        notes: application.notes
       }
     })
 
