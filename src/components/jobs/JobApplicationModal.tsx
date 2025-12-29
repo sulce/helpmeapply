@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { 
   X, 
   FileText, 
@@ -265,44 +266,180 @@ export function JobApplicationModal({
   console.log('job.sourceInfo:', job.sourceInfo)
   console.log('job.url:', job.url)
   
-  // For auto-apply jobs with direct automation (Indeed), show automation flow
+  // For auto-apply jobs with direct automation (Indeed), show enhanced manual flow
   if (job.canAutoApply === true && job.automationType === 'direct' && !showCheckInModal) {
-    console.log('Indeed auto-apply job - implementing direct automation')
+    console.log('Indeed job - showing enhanced manual application flow')
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <Card className="max-w-md w-full">
-          <div className="p-6 text-center">
-            <Bot className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-blue-700 mb-2">Indeed Auto-Apply</h2>
-            <p className="text-gray-600 mb-6">
-              This job supports Indeed's Quick Apply feature. Note: Indeed automation is not fully implemented yet.
-            </p>
-            
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Indeed Quick Apply Ready</h2>
+                <div className="flex items-center text-gray-600 space-x-2">
+                  <span>{job.title}</span>
+                  <span>•</span>
+                  <span>{job.company}</span>
+                  <span>•</span>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <span className="mr-1">🤖</span>
+                    Indeed Quick Apply
+                  </Badge>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 mt-0.5" />
-                <div className="text-sm text-yellow-800">
-                  <p className="font-medium mb-1">Feature In Development</p>
-                  <p>Indeed automation is being developed. For now, you'll be redirected to apply manually on Indeed's website.</p>
+                <Zap className="h-5 w-5 text-blue-600 mr-3 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-blue-900 mb-1">Optimized for Indeed</h3>
+                  <p className="text-blue-800 text-sm">
+                    This job supports Indeed's Quick Apply. We'll prepare your materials and guide you through the streamlined application process.
+                  </p>
                 </div>
               </div>
             </div>
-            
-            <div className="space-y-3">
-              <Button 
-                onClick={() => {
-                  // Open Indeed job in new tab for manual application
-                  window.open(job.url, '_blank')
-                  handleClose()
-                }} 
-                className="w-full"
-              >
-                Apply on Indeed Website
-              </Button>
-              <Button onClick={handleClose} variant="outline" className="w-full">
-                Cancel
-              </Button>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-4">Streamlined Indeed Process:</h3>
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">1</div>
+                    <div>
+                      <p className="font-medium">Get Your Application Materials</p>
+                      <p className="text-sm text-gray-600">Download your customized resume and copy your tailored cover letter</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">2</div>
+                    <div>
+                      <p className="font-medium">Use Indeed's Quick Apply</p>
+                      <p className="text-sm text-gray-600">Click "Easy Apply" on Indeed and upload your customized resume</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">3</div>
+                    <div>
+                      <p className="font-medium">Complete in Minutes</p>
+                      <p className="text-sm text-gray-600">Indeed's Quick Apply usually takes 2-3 minutes to complete</p>
+                    </div>
+                  </div>
+                  <button 
+                    className="flex items-start space-x-3 w-full text-left hover:bg-blue-25 rounded-lg p-2 -m-2 transition-colors"
+                    onClick={() => {
+                      window.open(`/interview?job=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`, '_blank')
+                    }}
+                  >
+                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">4</div>
+                    <div>
+                      <p className="font-medium">Practice Interview Questions</p>
+                      <p className="text-sm text-gray-600">Prepare with AI-powered interview practice customized for this role</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Application Materials Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold mb-3 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Your Application Materials
+                </h4>
+                <div className="space-y-3">
+                  {/* Resume Section */}
+                  <div className="space-y-2">
+                    {isCustomizingPreview ? (
+                      <div className="flex items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                        <span className="text-sm text-blue-700">Customizing resume for this position...</span>
+                      </div>
+                    ) : customizedResumeUrl ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => window.open(customizedResumeUrl, '_blank')}
+                        className="w-full justify-start"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download Customized Resume
+                      </Button>
+                    ) : (
+                      <div className="flex items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded">
+                        <span className="text-sm text-gray-500">Resume will be customized when you start the application</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cover Letter Section */}
+                  <div className="space-y-2">
+                    {isGeneratingCoverLetter ? (
+                      <div className="flex items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                        <span className="text-sm text-blue-700">Generating personalized cover letter...</span>
+                      </div>
+                    ) : coverLetter && coverLetter.trim() ? (
+                      <div className="bg-gray-50 p-3 rounded border">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium">Your Cover Letter:</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(coverLetter)
+                              // Could add a toast notification here
+                            }}
+                          >
+                            📋 Copy Text
+                          </Button>
+                        </div>
+                        <div className="text-sm text-gray-700 max-h-32 overflow-y-auto">
+                          {coverLetter.split('\n').map((line, i) => (
+                            <p key={i} className="mb-1">{line}</p>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded">
+                        <span className="text-sm text-gray-500">Cover letter will be generated when you start the application</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
+                  <div className="text-sm text-green-800">
+                    <p className="font-medium mb-1">Indeed Quick Apply Advantage</p>
+                    <p>Your application will be processed faster and stand out with our AI-customized materials. Most Indeed Quick Apply applications take under 5 minutes!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={handleClose} className="flex-1">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Start the application process and open Indeed
+                    window.open(job.url, '_blank')
+                    // Switch to check-in modal for tracking
+                    setShowCheckInModal(true)
+                  }}
+                  className="flex-1"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Start Quick Apply
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
