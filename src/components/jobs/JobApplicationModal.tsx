@@ -401,7 +401,7 @@ export function JobApplicationModal({
                           </Button>
                         </div>
                         <div className="text-sm text-gray-700 max-h-32 overflow-y-auto">
-                          {coverLetter.split('\n').map((line, i) => (
+                          {coverLetter.split('\n').map((line: string, i: number) => (
                             <p key={i} className="mb-1">{line}</p>
                           ))}
                         </div>
