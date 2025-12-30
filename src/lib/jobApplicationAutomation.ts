@@ -1208,14 +1208,14 @@ export class JobApplicationAutomation {
         if (questionText.includes('require sponsorship') || questionText.includes('work authorization')) {
           const select = await question.$('select')
           if (select) {
-            await select.selectOption({ label: 'No' })
+            await page.select('select', 'No')
           }
         }
         
         if (questionText.includes('willing to relocate')) {
           const select = await question.$('select')
           if (select) {
-            await select.selectOption({ label: 'Yes' })
+            await page.select('select', 'Yes')
           }
         }
       } catch (error) {
