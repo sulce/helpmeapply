@@ -21,7 +21,7 @@ interface Job {
   id: string
   title: string
   company: string
-  url: string
+  url?: string
   source: string
   sourceInfo?: any
 }
@@ -286,7 +286,7 @@ export function CheckInModal({
                 <Button 
                   onClick={() => {
                     // Open job URL in new tab
-                    window.open(job.url, '_blank')
+                    if (job.url) window.open(job.url, '_blank')
                     // Move to check-in step
                     setStep('check_in')
                   }}
