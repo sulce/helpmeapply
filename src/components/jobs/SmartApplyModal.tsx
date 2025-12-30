@@ -129,10 +129,10 @@ export function SmartApplyModal({
       submitFormData.append('phone', formData.phone)
       submitFormData.append('resume', formData.resumeFile)
       submitFormData.append('coverLetter', formData.coverLetter || '')
-      submitFormData.append('jobUrl', job.url)
+      submitFormData.append('jobUrl', job.url || '')
       submitFormData.append('jobTitle', job.title)
       submitFormData.append('company', job.company)
-      submitFormData.append('platform', job.sourceInfo.source)
+      submitFormData.append('platform', job.sourceInfo?.source || job.source || '')
 
       const response = await fetch('/api/auto-apply', {
         method: 'POST',
