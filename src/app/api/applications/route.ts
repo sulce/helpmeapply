@@ -102,6 +102,16 @@ export async function GET(req: NextRequest) {
         orderBy: { appliedAt: 'desc' },
         take: limit,
         skip: offset,
+        include: {
+          customizedResumes: {
+            select: {
+              id: true,
+              customizedResumeUrl: true,
+              matchScore: true,
+              createdAt: true
+            }
+          }
+        }
       }),
       prisma.application.count({ where }),
     ])

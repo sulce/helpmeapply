@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import { ApplicationMaterialsModal } from '@/components/applications/ApplicationMaterialsModal'
 import { 
   ExternalLink, 
   Calendar, 
@@ -21,6 +22,13 @@ import {
   Mic
 } from 'lucide-react'
 
+interface CustomizedResumeInfo {
+  id: string
+  customizedResumeUrl?: string
+  matchScore?: number
+  createdAt: string
+}
+
 interface Application {
   id: string
   jobTitle: string
@@ -36,6 +44,7 @@ interface Application {
   coverLetter?: string
   customizedResumeUrl?: string
   resumeCustomizationData?: string
+  customizedResumes?: CustomizedResumeInfo[]
 }
 
 interface ApplicationsData {
@@ -61,6 +70,7 @@ export function ApplicationsList() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [showCoverLetter, setShowCoverLetter] = useState<string | null>(null)
   const [startingInterview, setStartingInterview] = useState<string | null>(null)
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
 
   useEffect(() => {
     fetchApplications()
@@ -251,10 +261,17 @@ export function ApplicationsList() {
                         {statusClass.label}
                       </div>
                       
-                      {app.resumeCustomizationData && (
+                      {(app.resumeCustomizationData || (app.customizedResumes && app.customizedResumes.length > 0)) && (
                         <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded flex items-center">
                           <FileText className="w-3 h-3 mr-1" />
                           Custom Resume
+                        </span>
+                      )}
+                      
+                      {app.coverLetter && (
+                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded flex items-center">
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          Cover Letter
                         </span>
                       )}
                       
@@ -283,28 +300,15 @@ export function ApplicationsList() {
                       {startingInterview === app.id ? 'Starting...' : 'Practice Interview'}
                     </Button>
                     
-                    {app.resumeCustomizationData && (
+                    {(app.resumeCustomizationData || app.customizedResumeUrl || (app.customizedResumes && app.customizedResumes.length > 0) || app.coverLetter) && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          // This would open the customized resume viewer
-                          console.log('View customized resume for application:', app.id)
-                        }}
+                        onClick={() => setSelectedApplication(app)}
                         className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
                       >
                         <FileText className="h-4 w-4 mr-1" />
-                        Custom Resume
-                      </Button>
-                    )}
-                    
-                    {app.coverLetter && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setShowCoverLetter(showCoverLetter === app.id ? null : app.id)}
-                      >
-                        {showCoverLetter === app.id ? 'Hide' : 'View'} Cover Letter
+                        View Materials
                       </Button>
                     )}
                     
@@ -334,15 +338,6 @@ export function ApplicationsList() {
                   </div>
                 </div>
 
-                {/* Cover Letter Expansion */}
-                {showCoverLetter === app.id && app.coverLetter && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h5 className="font-medium text-gray-900 mb-2">Cover Letter</h5>
-                    <div className="bg-gray-50 p-3 rounded text-sm text-gray-700 whitespace-pre-wrap">
-                      {app.coverLetter}
-                    </div>
-                  </div>
-                )}
 
                 {/* Notes */}
                 {app.notes && (
@@ -364,6 +359,13 @@ export function ApplicationsList() {
             </Button>
           </div>
         )}
+
+        {/* Application Materials Modal */}
+        <ApplicationMaterialsModal
+          application={selectedApplication}
+          isOpen={!!selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+        />
       </div>
     </div>
   )
