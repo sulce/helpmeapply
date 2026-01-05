@@ -358,11 +358,11 @@ export class JSearchAPI {
             ? `${job.job_city}, ${job.job_state}` 
             : job.job_city || job.job_state || job.job_country,
           salaryRange: job.job_min_salary && job.job_max_salary
-            ? `$${job.job_min_salary.toLocaleString()} - $${job.job_max_salary.toLocaleString()}`
+            ? `${job.job_min_salary.toLocaleString()} - ${job.job_max_salary.toLocaleString()}`
             : job.job_min_salary
-            ? `From $${job.job_min_salary.toLocaleString()}`
+            ? `From ${job.job_min_salary.toLocaleString()}`
             : job.job_max_salary
-            ? `Up to $${job.job_max_salary.toLocaleString()}`
+            ? `Up to ${job.job_max_salary.toLocaleString()}`
             : undefined,
           employmentType: job.job_employment_type,
           isRemote: job.job_is_remote,
@@ -406,11 +406,11 @@ export class JSearchAPI {
           ? `${job.job_city}, ${job.job_state}` 
           : job.job_city || job.job_state || job.job_country,
         salaryRange: job.job_min_salary && job.job_max_salary
-          ? `$${job.job_min_salary.toLocaleString()} - $${job.job_max_salary.toLocaleString()}`
+          ? `${job.job_min_salary.toLocaleString()} - ${job.job_max_salary.toLocaleString()}`
           : job.job_min_salary
-          ? `From $${job.job_min_salary.toLocaleString()}`
+          ? `From ${job.job_min_salary.toLocaleString()}`
           : job.job_max_salary
-          ? `Up to $${job.job_max_salary.toLocaleString()}`
+          ? `Up to ${job.job_max_salary.toLocaleString()}`
           : undefined,
         employmentType: job.job_employment_type,
         isRemote: job.job_is_remote,
@@ -442,7 +442,7 @@ export class BackupJobAPI {
         description: `We are looking for a talented ${params.query} to join our team. This is a great opportunity for someone with strong technical skills.`,
         url: 'https://example.com/job/1',
         location: params.location || 'Remote',
-        salaryRange: '$70,000 - $120,000',
+        salaryRange: '70,000 - 120,000',
         employmentType: 'Full-time',
         isRemote: !params.location || params.location.toLowerCase().includes('remote'),
         postedAt: new Date(),
@@ -457,7 +457,7 @@ export class BackupJobAPI {
         description: `Join our innovative team as a Senior ${params.query}. We offer competitive compensation and great benefits.`,
         url: 'https://example.com/job/2',
         location: params.location || 'San Francisco, CA',
-        salaryRange: '$90,000 - $150,000',
+        salaryRange: '90,000 - 150,000',
         employmentType: 'Full-time',
         isRemote: false,
         postedAt: new Date(Date.now() - 86400000), // 1 day ago

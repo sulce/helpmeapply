@@ -38,7 +38,7 @@ export function JobMatchTester() {
     description: 'We are looking for a Senior Frontend Developer to join our team. You will be responsible for building modern web applications using React, TypeScript, and other cutting-edge technologies.',
     requirements: ['React', 'TypeScript', '5+ years experience', 'Node.js'],
     location: 'San Francisco, CA',
-    salaryRange: '$120,000 - $150,000',
+    salaryRange: '120,000 - 150,000',
     employmentType: 'FULL_TIME',
     jobUrl: 'https://example.com/job/123',
     source: 'linkedin',

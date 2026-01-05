@@ -34,7 +34,7 @@ Nice to have:
 - CI/CD pipeline experience`,
     requirements: 'React, Node.js, TypeScript, JavaScript, AWS, Problem Solving, Communication',
     location: 'San Francisco, CA',
-    salaryRange: '$120,000 - $180,000',
+    salaryRange: '120,000 - 180,000',
   })
 
   const handleSubmit = async () => {

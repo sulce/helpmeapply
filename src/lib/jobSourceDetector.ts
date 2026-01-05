@@ -3,7 +3,7 @@
  * Categorizes job URLs into specific platforms for targeted automation
  */
 
-export type JobSource = 'INDEED' | 'GREENHOUSE' | 'LEVER' | 'OTHER'
+export type JobSource = 'INDEED' | 'LINKEDIN' | 'GREENHOUSE' | 'LEVER' | 'OTHER'
 
 export interface JobSourceInfo {
   source: JobSource
@@ -28,6 +28,11 @@ export function detectJobSource(url: string): JobSource {
   // Indeed detection (existing)
   if (normalizedUrl.includes('indeed.com')) {
     return 'INDEED'
+  }
+  
+  // LinkedIn detection
+  if (normalizedUrl.includes('linkedin.com/jobs')) {
+    return 'LINKEDIN'
   }
   
   // Greenhouse detection
@@ -61,6 +66,19 @@ export function getJobSourceInfo(url: string): JobSourceInfo {
         badge: {
           color: 'bg-blue-50 text-blue-700 border-blue-200',
           text: 'Auto Apply Available'
+        }
+      }
+      
+    case 'LINKEDIN':
+      return {
+        source: 'LINKEDIN',
+        canAutomate: false,
+        automationType: 'manual',
+        displayName: 'LinkedIn',
+        icon: '💼',
+        badge: {
+          color: 'bg-blue-50 text-blue-700 border-blue-200',
+          text: 'Manual Apply Required'
         }
       }
       

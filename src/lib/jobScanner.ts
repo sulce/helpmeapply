@@ -266,7 +266,7 @@ export class JobScanner {
         description: 'Looking for an experienced software engineer to join our team...',
         url: 'https://linkedin.com/job/123',
         location: preferredLocations[0] || 'Remote',
-        salaryRange: '$80,000 - $120,000',
+        salaryRange: '80,000 - 120,000',
         employmentType: 'FULL_TIME',
         source: 'mock',
         sourceJobId: 'mock_123',
@@ -277,7 +277,7 @@ export class JobScanner {
         description: 'Join our growing team as a frontend developer...',
         url: 'https://indeed.com/job/456',
         location: preferredLocations[0] || 'San Francisco, CA',
-        salaryRange: '$70,000 - $100,000',
+        salaryRange: '70,000 - 100,000',
         employmentType: 'FULL_TIME',
         source: 'mock',
         sourceJobId: 'mock_456',
@@ -487,34 +487,160 @@ export class JobScanner {
 
   private async autoApplyToJob(job: any, profile: any, matchScore: number, coverLetter: string) {
     try {
-      await prisma.application.create({
-        data: {
-          userId: profile.userId,
-          jobTitle: job.title,
-          company: job.company,
-          jobDescription: job.description,
-          jobUrl: job.url,
-          location: job.location,
-          salaryRange: job.salaryRange,
-          employmentType: job.employmentType,
-          status: 'APPLIED',
-          coverLetter,
+      const { getJobSourceInfo } = await import('./jobSourceDetector')
+      const sourceInfo = getJobSourceInfo(job.url || '')
+      
+      // Only attempt real automation for supported platforms
+      if (sourceInfo.source === 'GREENHOUSE' || sourceInfo.source === 'LEVER') {
+        try {
+          // Attempt real automation for Greenhouse/Lever
+          const automationResult = await this.attemptRealAutomation(job, profile, coverLetter, sourceInfo)
+          
+          if (automationResult.success) {
+            // Real automation succeeded
+            await this.createApplicationRecord(job, profile, {
+              status: 'APPLIED',
+              notes: `Auto-applied via ${sourceInfo.displayName} application form`,
+              source: `automated_${sourceInfo.source.toLowerCase()}`,
+              matchScore,
+              coverLetter,
+              appliedTo: true
+            })
+            console.log(`✅ Successfully auto-applied to ${job.title} at ${job.company} via ${sourceInfo.displayName}`)
+          } else {
+            // Automation failed - requires manual
+            await this.createApplicationRecord(job, profile, {
+              status: 'REVIEWING',
+              notes: `Auto-apply to ${sourceInfo.displayName} failed - manual application required. ${automationResult.error || ''}`,
+              source: `manual_${sourceInfo.source.toLowerCase()}`,
+              matchScore,
+              coverLetter,
+              appliedTo: false
+            })
+            console.log(`⚠️ Auto-apply failed for ${job.title} at ${job.company} - requires manual application`)
+          }
+        } catch (error) {
+          // Automation error - requires manual
+          await this.createApplicationRecord(job, profile, {
+            status: 'REVIEWING',
+            notes: `Auto-apply to ${sourceInfo.displayName} encountered error - manual application required`,
+            source: `manual_${sourceInfo.source.toLowerCase()}`,
+            matchScore,
+            coverLetter,
+            appliedTo: false
+          })
+          console.log(`❌ Auto-apply error for ${job.title} at ${job.company} - requires manual application`)
+        }
+      } else {
+        // No automation available - create manual application record
+        const platformName = sourceInfo.source === 'INDEED' ? 'Indeed website' : 
+                             sourceInfo.source === 'LINKEDIN' ? 'LinkedIn' : 
+                             sourceInfo.displayName || 'company website'
+        
+        await this.createApplicationRecord(job, profile, {
+          status: 'REVIEWING',
+          notes: `Manual application required - apply via ${platformName}`,
+          source: `manual_${sourceInfo.source.toLowerCase()}`,
           matchScore,
-          source: job.source,
-          sourceJobId: job.sourceJobId,
-          notes: 'Auto-applied by AI assistant',
-        },
-      })
-
-      await prisma.job.update({
-        where: { id: job.id },
-        data: { appliedTo: true },
-      })
-
-      console.log(`Auto-applied to ${job.title} at ${job.company} (Match: ${Math.round(matchScore * 100)}%)`)
+          coverLetter,
+          appliedTo: false
+        })
+        console.log(`📝 Flagged ${job.title} at ${job.company} for manual application via ${platformName}`)
+      }
     } catch (error) {
-      console.error('Error auto-applying to job:', error)
+      console.error('Error processing job application:', error)
       throw error
+    }
+  }
+
+  private async createApplicationRecord(job: any, profile: any, options: {
+    status: 'APPLIED' | 'REVIEWING',
+    notes: string,
+    source: string,
+    matchScore: number,
+    coverLetter: string,
+    appliedTo: boolean
+  }) {
+    await prisma.application.create({
+      data: {
+        userId: profile.userId,
+        jobTitle: job.title,
+        company: job.company,
+        jobDescription: job.description,
+        jobUrl: job.url,
+        location: job.location,
+        salaryRange: job.salaryRange,
+        employmentType: job.employmentType,
+        status: options.status,
+        coverLetter: options.coverLetter,
+        matchScore: options.matchScore,
+        source: options.source,
+        sourceJobId: job.sourceJobId,
+        notes: options.notes,
+      },
+    })
+
+    await prisma.job.update({
+      where: { id: job.id },
+      data: { appliedTo: options.appliedTo },
+    })
+  }
+
+  private async attemptRealAutomation(job: any, profile: any, coverLetter: string, sourceInfo: any) {
+    try {
+      console.log(`Attempting real automation for ${job.title} at ${job.company} via ${sourceInfo.displayName}`)
+      
+      // Create form data for automation API
+      const formData = new FormData()
+      formData.append('firstName', profile.fullName?.split(' ')[0] || '')
+      formData.append('lastName', profile.fullName?.split(' ').slice(1).join(' ') || '')
+      formData.append('email', profile.email || '')
+      formData.append('phone', profile.mobile || '')
+      formData.append('jobUrl', job.url || '')
+      formData.append('jobTitle', job.title)
+      formData.append('company', job.company)
+      formData.append('platform', sourceInfo.source)
+      formData.append('coverLetter', coverLetter || '')
+      
+      // Add resume file if available
+      if (profile.resumeUrl) {
+        // Create a blob from the resume URL for upload
+        const resumeResponse = await fetch(profile.resumeUrl)
+        if (resumeResponse.ok) {
+          const resumeBlob = await resumeResponse.blob()
+          formData.append('resume', resumeBlob, 'resume.pdf')
+        }
+      }
+      
+      // Call the real automation API
+      const response = await fetch('/api/auto-apply', {
+        method: 'POST',
+        body: formData
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok && result.success) {
+        console.log(`✅ Real automation succeeded: ${result.message}`)
+        return {
+          success: true,
+          platform: sourceInfo.source,
+          method: 'automated',
+          details: result.details || result.message
+        }
+      } else {
+        console.log(`❌ Real automation failed: ${result.error}`)
+        return {
+          success: false,
+          error: result.error || 'Automation API returned failure'
+        }
+      }
+    } catch (error) {
+      console.log(`❌ Real automation error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown automation error'
+      }
     }
   }
 

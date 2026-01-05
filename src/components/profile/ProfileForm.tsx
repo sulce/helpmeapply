@@ -327,7 +327,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                 />
               </div>
               <div>
-                <Label htmlFor="salaryMin">Minimum Salary ($)</Label>
+                <Label htmlFor="salaryMin">Minimum Salary</Label>
                 <Input
                   id="salaryMin"
                   type="number"
@@ -335,9 +335,10 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                   error={errors.salaryMin?.message}
                   placeholder="50000"
                 />
+                <p className="text-xs text-gray-500 mt-1">Enter amount in your local currency</p>
               </div>
               <div>
-                <Label htmlFor="salaryMax">Maximum Salary ($)</Label>
+                <Label htmlFor="salaryMax">Maximum Salary</Label>
                 <Input
                   id="salaryMax"
                   type="number"
@@ -345,6 +346,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                   error={errors.salaryMax?.message}
                   placeholder="100000"
                 />
+                <p className="text-xs text-gray-500 mt-1">Enter amount in your local currency</p>
               </div>
             </div>
           </div>
