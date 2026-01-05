@@ -37,8 +37,12 @@ export async function GET(req: NextRequest) {
 
     const validatedParams = jobsQuerySchema.parse(queryParams)
 
-    // Get job IDs from user's notifications and application reviews
-    const [userNotifications, userApplicationReviews] = await Promise.all([
+    // Get job IDs from user's scans, notifications, and application reviews
+    const [userJobScans, userNotifications, userApplicationReviews] = await Promise.all([
+      prisma.userJobScan.findMany({
+        where: { userId: session.user.id },
+        select: { jobId: true }
+      }),
       prisma.jobNotification.findMany({
         where: { userId: session.user.id },
         select: { jobId: true }
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
     ])
     
     const jobIds = [
+      ...userJobScans.map(s => s.jobId),
       ...userNotifications.map(n => n.jobId),
       ...userApplicationReviews.map(r => r.jobId)
     ]
@@ -127,7 +132,7 @@ export async function GET(req: NextRequest) {
     ])
 
     // Log basic performance info only
-    console.log(`Jobs API - Fetched ${jobs.length}/${totalCount} jobs for user ${session.user.id}`)
+    console.log(`Jobs API - Fetched ${jobs.length}/${totalCount} jobs for user ${session.user.id} (${userJobScans.length} scanned, ${userNotifications.length} notifications, ${userApplicationReviews.length} reviews)`)
 
     const totalPages = Math.ceil(totalCount / limit)
 

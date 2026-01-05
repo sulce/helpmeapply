@@ -84,6 +84,10 @@ export class JobScanner {
         const savedJob = await this.saveJobListing(job)
         processed++
 
+        // Always create a scan record so the job appears in the frontend
+        // This ensures scanned jobs are visible regardless of AI settings
+        await this.createUserJobScan(profile.userId, savedJob.id)
+        
         if (settings.isEnabled) {
           const matchResult = await this.evaluateJobMatch(savedJob, profile, settings)
           
@@ -97,7 +101,7 @@ export class JobScanner {
           console.log(`  Auto-apply threshold (${Math.round(settings.minMatchScore * 100)}%): ${meetsAutoApplyThreshold}`)
           console.log(`  Notification threshold (${Math.round(settings.notifyMinScore * 100)}%): ${meetsNotifyThreshold}`)
           
-          // ONLY process jobs that meet at least the notification threshold
+          // Create AI notifications only if job meets threshold
           if (meetsNotifyThreshold) {
             if (meetsAutoApplyThreshold) {
               // High scoring job - check if we should auto-apply or need approval
@@ -122,11 +126,6 @@ export class JobScanner {
                 await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
               }
             }
-          } else {
-            console.log(`  Skipping job - below notification threshold`)
-            // Remove the job from database if it doesn't meet minimum threshold
-            await prisma.job.delete({ where: { id: savedJob.id } })
-            processed-- // Don't count this as processed
           }
         }
       }
@@ -422,6 +421,26 @@ export class JobScanner {
         matchScore: 0,
         analysis: null,
         coverLetter: '',
+      }
+    }
+  }
+
+  private async createUserJobScan(userId: string, jobId: string) {
+    try {
+      await prisma.userJobScan.create({
+        data: {
+          userId,
+          jobId,
+          scannedAt: new Date()
+        }
+      })
+      console.log(`Created scan record for user ${userId} and job ${jobId}`)
+    } catch (error) {
+      // Ignore duplicate scan records (unique constraint)
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log(`Scan record already exists for user ${userId} and job ${jobId}`)
+      } else {
+        console.error('Error creating user job scan:', error)
       }
     }
   }
