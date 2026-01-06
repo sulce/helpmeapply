@@ -99,7 +99,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-200 py-8 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-sm text-gray-500">
-            © 2025 HelpMeApply AI. AI-powered career advancement platform.
+            © 2026 HelpMeApply AI. AI-powered career advancement platform.
           </p>
         </div>
       </footer>

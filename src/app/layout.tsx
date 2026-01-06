@@ -8,6 +8,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'HelpMeApply AI - Smart Job Application Assistant',
   description: 'Automate your job search and application process with AI-powered assistance',
+  icons: {
+    icon: 'https://res.cloudinary.com/drvfzwgjm/image/upload/v1761079284/6d9abdda-f20a-4568-8638-09bc7f5949c5_bzags5.jpg',
+    shortcut: 'https://res.cloudinary.com/drvfzwgjm/image/upload/v1761079284/6d9abdda-f20a-4568-8638-09bc7f5949c5_bzags5.jpg',
+    apple: 'https://res.cloudinary.com/drvfzwgjm/image/upload/v1761079284/6d9abdda-f20a-4568-8638-09bc7f5949c5_bzags5.jpg',
+  },
 }
 
 export default function RootLayout({
