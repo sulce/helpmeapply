@@ -1,0 +1,29 @@
+{
+  "name": "helpmeapply-worker",
+  "version": "1.0.0",
+  "description": "HelpMeApply Background Job Queue Worker",
+  "main": "src/scripts/queue-worker.ts",
+  "scripts": {
+    "worker:run": "tsx src/scripts/queue-worker.ts",
+    "worker:dev": "tsx watch src/scripts/queue-worker.ts",
+    "start": "npm run worker:run",
+    "db:generate": "prisma generate",
+    "build": "echo 'Worker runs with tsx, no build needed'"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "@types/node": "^24.0.13",
+    "openai": "^4.67.3",
+    "prisma": "^6.11.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3",
+    "zod": "^3.23.8"
+  },
+  "keywords": ["job-queue", "worker", "background-jobs"],
+  "author": "",
+  "license": "ISC"
+}

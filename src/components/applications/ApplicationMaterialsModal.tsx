@@ -28,6 +28,9 @@ interface Application {
   customizedResumeUrl?: string
   resumeCustomizationData?: string
   customizedResumes?: CustomizedResumeInfo[]
+  matchScore?: number
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 interface CustomizedResume {
@@ -98,6 +101,14 @@ export function ApplicationMaterialsModal({
         }
         
         // Create a resume object from the application data
+        const createdAtStr = application.createdAt
+          ? (application.createdAt instanceof Date ? application.createdAt.toISOString() : String(application.createdAt))
+          : new Date().toISOString()
+
+        const updatedAtStr = application.updatedAt
+          ? (application.updatedAt instanceof Date ? application.updatedAt.toISOString() : String(application.updatedAt))
+          : new Date().toISOString()
+
         const resume = {
           id: `app-${application.id}`,
           jobTitle: application.jobTitle,
@@ -109,8 +120,8 @@ export function ApplicationMaterialsModal({
           matchScore: matchScore,
           originalResumeUrl: application.customizedResumeUrl,
           customizedResumeUrl: application.customizedResumeUrl,
-          createdAt: application.createdAt || new Date().toISOString(),
-          updatedAt: application.updatedAt || new Date().toISOString()
+          createdAt: createdAtStr,
+          updatedAt: updatedAtStr
         }
         
         setCustomizedResume(resume)

@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
       session.user.name || undefined
     )
 
+    if (!customerId) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured or customer creation failed' },
+        { status: 500 }
+      )
+    }
+
     // Create customer portal session
     const portalSession = await createCustomerPortalSession(customerId, returnUrl)
 

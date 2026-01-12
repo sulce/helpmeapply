@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db'
  * Creates a Stripe customer and stores the ID in our database
  * Called on user signup to establish billing relationship
  */
-export async function createStripeCustomer(userId: string, email: string, name?: string) {
+export async function createStripeCustomer(userId: string, email: string, name?: string): Promise<string | null> {
   try {
     if (!isStripeConfigured || !stripe) {
       console.warn('Stripe not configured, skipping customer creation')
@@ -55,7 +55,7 @@ export async function createStripeCustomer(userId: string, email: string, name?:
  * Gets or creates a Stripe customer ID for a user
  * Ensures every user has a corresponding Stripe customer
  */
-export async function ensureStripeCustomer(userId: string, email: string, name?: string) {
+export async function ensureStripeCustomer(userId: string, email: string, name?: string): Promise<string | null> {
   console.log('[Customer] Ensuring customer for user:', userId, email)
 
   const user = await prisma.user.findUnique({
