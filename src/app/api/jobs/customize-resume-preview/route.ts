@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { withSubscription } from '@/lib/billing'
 import { structuredResumeCustomizer } from '@/lib/structuredResumeCustomizer'
 
-export async function POST(req: NextRequest) {
+export const POST = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const { jobId, jobTitle, jobCompany, jobDescription, resumeData } = await req.json()
 
     if (!jobTitle || !resumeData) {
@@ -45,10 +35,45 @@ export async function POST(req: NextRequest) {
         description: jobDescription || '',
         requirements: []
       },
-      session.user.id
+      user.id
     )
 
     console.log('Customization completed, PDF URL:', customizationResult.customizedPdfUrl)
+
+    // Save the customized materials for future reference (critical for manual application workflow)
+    if (jobId && jobId !== 'preview') {
+      try {
+        const { prisma } = await import('@/lib/db')
+        
+        console.log('Saving customized materials for future manual application...')
+        
+        // Save to CustomizedResume table for easy retrieval
+        await prisma.customizedResume.create({
+          data: {
+            userId: user.id,
+            jobId: jobId,
+            jobTitle: jobTitle,
+            company: jobCompany || 'Company',
+            originalResumeUrl: customizationResult.customizedPdfUrl, // Same as customized for preview
+            customizedResumeUrl: customizationResult.customizedPdfUrl,
+            customizedContent: JSON.stringify(cleanResumeData),
+            customizationData: JSON.stringify({
+              customizationNotes: customizationResult.customizationNotes,
+              keywordMatches: customizationResult.keywordMatches,
+              matchScore: customizationResult.matchScore,
+              customizedAt: new Date().toISOString()
+            }),
+            keywordMatches: JSON.stringify(customizationResult.keywordMatches),
+            matchScore: customizationResult.matchScore
+          }
+        })
+        
+        console.log('Customized materials saved successfully for job:', jobId)
+      } catch (saveError) {
+        console.error('Failed to save customized materials (non-critical):', saveError)
+        // Don't fail the response if saving fails - customization still worked
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -65,4 +90,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

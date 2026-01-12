@@ -1,6 +1,7 @@
 import { JobResult, JobType } from '../types'
 import { jobNotificationService } from '../../jobNotificationService'
 import { jobScanner } from '../../jobScanner'
+import { analyzeJobMatch } from '../../openai'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -161,9 +162,7 @@ async function getLastScanTime(userId: string): Promise<Date | null> {
     where: {
       userId,
       status: 'COMPLETED',
-      errorMessage: {
-        contains: 'user_job_scan',
-      },
+      type: 'user_job_scan',
     },
     orderBy: {
       processedAt: 'desc',
@@ -177,17 +176,135 @@ async function updateLastScanTime(userId: string): Promise<void> {
   // Create a record of the scan completion
   await prisma.jobQueue.create({
     data: {
-      jobId: `scan_record_${Date.now()}`,
+      type: 'scan_record',
+      payload: JSON.stringify({
+        timestamp: new Date().toISOString(),
+      }),
       userId,
       status: 'COMPLETED',
       priority: 0,
-      attempts: 0,
+      attemptCount: 0,
       maxAttempts: 1,
-      errorMessage: JSON.stringify({
-        type: 'scan_record',
-        timestamp: new Date().toISOString(),
-      }),
       processedAt: new Date(),
     },
   })
+}
+
+// STAGE 3: Background AI analysis handler for batched processing
+export async function handleAnalyzeJobMatch(payload: { jobId: string; userId: string }): Promise<JobResult> {
+  const startTime = Date.now()
+  
+  try {
+    console.log(`🤖 STAGE 3: Processing AI analysis for job ${payload.jobId}`)
+    
+    // Get job and profile data
+    const [job, profile] = await Promise.all([
+      prisma.job.findUnique({
+        where: { id: payload.jobId }
+      }),
+      prisma.profile.findUnique({
+        where: { userId: payload.userId },
+        include: {
+          autoApplySettings: true,
+          skills: true,
+        },
+      })
+    ])
+
+    if (!job || !profile || !profile.autoApplySettings) {
+      return {
+        success: false,
+        error: 'Job or profile not found',
+        duration: Date.now() - startTime,
+      }
+    }
+
+    // Perform AI analysis
+    const matchAnalysis = await analyzeJobMatch({
+      profile: {
+        fullName: profile.fullName,
+        jobTitlePrefs: JSON.parse(profile.jobTitlePrefs || '[]'),
+        yearsExperience: profile.yearsExperience || 0,
+        skills: (profile.skills || []).map(skill => ({
+          name: skill.name,
+          proficiency: skill.proficiency,
+          yearsUsed: skill.yearsUsed || 0
+        })),
+        preferredLocations: JSON.parse(profile.preferredLocations || '[]'),
+        employmentTypes: JSON.parse(profile.employmentTypes || '[]'),
+      },
+      jobDescription: {
+        title: job.title,
+        company: job.company,
+        description: job.description || '',
+        requirements: [],
+        location: job.location || '',
+        salaryRange: job.salaryRange || '',
+        employmentType: job.employmentType || 'FULL_TIME',
+      },
+    })
+
+    // Update job with match score
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        matchScore: matchAnalysis.matchScore,
+        isProcessed: true,
+      },
+    })
+
+    const settings = profile.autoApplySettings
+    const meetsAutoApplyThreshold = matchAnalysis.matchScore >= settings.minMatchScore
+    const meetsNotifyThreshold = matchAnalysis.matchScore >= settings.notifyMinScore
+
+    console.log(`✅ AI Analysis complete: ${job.title} at ${job.company}`)
+    console.log(`  Match Score: ${Math.round(matchAnalysis.matchScore * 100)}%`)
+    console.log(`  Auto-apply threshold (${Math.round(settings.minMatchScore * 100)}%): ${meetsAutoApplyThreshold}`)
+    console.log(`  Notification threshold (${Math.round(settings.notifyMinScore * 100)}%): ${meetsNotifyThreshold}`)
+
+    // Create notifications/auto-apply based on scores
+    let actionsPerformed = []
+    
+    if (meetsNotifyThreshold) {
+      if (meetsAutoApplyThreshold && settings.autoApplyEnabled && !settings.requireApproval) {
+        // Auto-apply logic here (STAGE 4)
+        actionsPerformed.push('auto_apply_queued')
+      } else if (settings.notifyOnMatch) {
+        // Create notification
+        const notification = await prisma.jobNotification.create({
+          data: {
+            userId: profile.userId,
+            jobId: job.id,
+            matchScore: matchAnalysis.matchScore,
+            status: 'PENDING',
+            message: `Found a ${Math.round(matchAnalysis.matchScore * 100)}% match: ${job.title} at ${job.company}`,
+            expiresAt: new Date(Date.now() + (settings.reviewTimeoutHours || 24) * 60 * 60 * 1000),
+          },
+        })
+        actionsPerformed.push('notification_created')
+      }
+    }
+
+    const duration = Date.now() - startTime
+    console.log(`🎯 AI analysis completed in ${duration}ms for job ${payload.jobId}`)
+
+    return {
+      success: true,
+      data: {
+        jobId: payload.jobId,
+        matchScore: matchAnalysis.matchScore,
+        meetsAutoApplyThreshold,
+        meetsNotifyThreshold,
+        actionsPerformed,
+      },
+      duration,
+    }
+  } catch (error) {
+    console.error('AI job analysis error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error in AI analysis',
+      duration: Date.now() - startTime,
+    }
+  }
 }

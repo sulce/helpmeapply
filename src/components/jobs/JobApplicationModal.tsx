@@ -114,6 +114,7 @@ export function JobApplicationModal({
         credentials: 'include',
         body: JSON.stringify({
           job: {
+            id: job.id,
             title: job.title,
             company: job.company,
             description: job.description || ''

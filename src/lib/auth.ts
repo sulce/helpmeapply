@@ -4,6 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import LinkedInProvider from 'next-auth/providers/linkedin'
 import bcrypt from 'bcryptjs'
 import { prisma } from './db'
+import { ensureStripeCustomer } from './billing'
 
 // Custom Indeed OAuth provider
 const IndeedProvider = {
@@ -97,6 +98,45 @@ export const authOptions: NextAuthOptions = {
         // We'll handle the import in a separate API call after user creation
         // to avoid blocking the login process
         console.log(`${account.provider} OAuth login detected for user:`, user.email)
+        
+        // Ensure Stripe customer exists for OAuth users and initialize trial if new
+        if (user.id && user.email) {
+          try {
+            // Check if user already has plan data - if not, initialize trial
+            const existingUser = await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { subscriptionPlan: true }
+            })
+            
+            if (existingUser && !existingUser.subscriptionPlan) {
+              // Initialize trial for new OAuth users
+              const now = new Date()
+              const trialEndsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000) // 24 hours from now
+              
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  subscriptionPlan: 'free_trial',
+                  autoApplicationsUsed: 0,
+                  autoApplicationsLimit: 5, // Free trial limit
+                  mockInterviewsUsed: 0,
+                  mockInterviewsLimit: 1, // Free trial limit
+                  hasInterviewAddon: false,
+                  trialEndsAt: trialEndsAt,
+                  subscriptionPeriodStart: now,
+                  trialExtensions: 0,
+                }
+              })
+              console.log(`Initialized free trial for OAuth user ${user.id}`)
+            }
+            
+            await ensureStripeCustomer(user.id, user.email, user.name || undefined)
+            console.log(`Ensured Stripe customer for OAuth user ${user.id}`)
+          } catch (error) {
+            console.error('Failed to ensure Stripe customer for OAuth user:', error)
+            // Don't fail login if Stripe customer creation fails
+          }
+        }
       }
       return true
     },

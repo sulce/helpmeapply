@@ -48,23 +48,19 @@ export class JobQueue extends EventEmitter {
     const scheduledFor = options.scheduledFor || 
       (options.delay ? new Date(Date.now() + options.delay) : new Date())
 
-    const status = scheduledFor > new Date() ? JobStatus.SCHEDULED : JobStatus.PENDING
+    const status = scheduledFor > new Date() ? 'PENDING' : 'PENDING' // Use PENDING for both - scheduler will handle timing
 
     await prisma.jobQueue.create({
       data: {
-        jobId,
+        type: type,
+        payload: JSON.stringify(payload),
         userId: payload.userId || 'system',
         status,
         priority: options.priority || 1,
-        attempts: 0,
+        attemptCount: 0,
         maxAttempts: options.maxAttempts || 3,
-        // Store job metadata in the existing fields
-        errorMessage: JSON.stringify({
-          type,
-          payload,
-          scheduledFor: scheduledFor.toISOString(),
-        }),
-        processedAt: status === JobStatus.PENDING ? null : scheduledFor,
+        availableAt: scheduledFor,
+        processedAt: status === 'PENDING' ? null : scheduledFor,
       },
     })
 
@@ -137,7 +133,8 @@ export class JobQueue extends EventEmitter {
   private async activateScheduledJobs() {
     await prisma.jobQueue.updateMany({
       where: {
-        status: 'SCHEDULED',
+        status: 'PENDING',
+        availableAt: { lte: new Date() },
         processedAt: {
           lte: new Date(),
         },
@@ -193,16 +190,19 @@ export class JobQueue extends EventEmitter {
     let jobMetadata: any
 
     try {
-      // Parse job metadata from errorMessage field
-      jobMetadata = JSON.parse(job.errorMessage || '{}')
-      const handler = this.handlers.get(jobMetadata.type)
+      // Parse job payload from new schema
+      jobMetadata = {
+        type: job.type,
+        payload: JSON.parse(job.payload || '{}')
+      }
+      const handler = this.handlers.get(job.type)
 
       if (!handler) {
-        throw new Error(`No handler registered for job type: ${jobMetadata.type}`)
+        throw new Error(`No handler registered for job type: ${job.type}`)
       }
 
-      console.log(`Executing job ${job.jobId} of type ${jobMetadata.type}`)
-      this.emit('jobStarted', { jobId: job.jobId, type: jobMetadata.type })
+      console.log(`Executing job ${job.id} of type ${job.type}`)
+      this.emit('jobStarted', { jobId: job.id, type: job.type })
 
       // Execute the job with timeout
       const result = await this.executeWithTimeout(
@@ -225,17 +225,17 @@ export class JobQueue extends EventEmitter {
           },
         })
 
-        console.log(`Job ${job.jobId} completed successfully`)
-        this.emit('jobCompleted', { jobId: job.jobId, type: jobMetadata.type, result })
+        console.log(`Job ${job.id} completed successfully`)
+        this.emit('jobCompleted', { jobId: job.id, type: job.type, result })
       } else {
         throw new Error(result.error || 'Job execution failed')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error(`Job ${job.jobId} failed:`, errorMessage)
+      console.error(`Job ${job.id} failed:`, errorMessage)
 
       // Determine if we should retry
-      const shouldRetry = job.attempts < job.maxAttempts - 1
+      const shouldRetry = job.attemptCount < job.maxAttempts - 1
       
       if (shouldRetry) {
         // Schedule retry
@@ -245,20 +245,20 @@ export class JobQueue extends EventEmitter {
         await prisma.jobQueue.update({
           where: { id: job.id },
           data: {
-            status: 'RETRYING',
-            attempts: job.attempts + 1,
+            status: 'PENDING',
+            attemptCount: job.attemptCount + 1,
             processedAt: nextRetryAt,
             errorMessage: JSON.stringify({
               ...jobMetadata,
               error: errorMessage,
-              attempts: job.attempts + 1,
+              attemptCount: job.attemptCount + 1,
               nextRetryAt: nextRetryAt.toISOString(),
             }),
           },
         })
 
-        console.log(`Job ${job.jobId} scheduled for retry ${job.attempts + 1}/${job.maxAttempts} at ${nextRetryAt}`)
-        this.emit('jobRetrying', { jobId: job.jobId, type: jobMetadata?.type, attempt: job.attempts + 1 })
+        console.log(`Job ${job.id} scheduled for retry ${job.attemptCount + 1}/${job.maxAttempts} at ${nextRetryAt}`)
+        this.emit('jobRetrying', { jobId: job.id, type: job.type, attempt: job.attemptCount + 1 })
       } else {
         // Job failed permanently
         await prisma.jobQueue.update({
@@ -274,8 +274,8 @@ export class JobQueue extends EventEmitter {
           },
         })
 
-        console.log(`Job ${job.jobId} failed permanently after ${job.attempts + 1} attempts`)
-        this.emit('jobFailed', { jobId: job.jobId, type: jobMetadata?.type, error: errorMessage })
+        console.log(`Job ${job.id} failed permanently after ${job.attemptCount + 1} attempts`)
+        this.emit('jobFailed', { jobId: job.id, type: job.type, error: errorMessage })
       }
     }
   }
@@ -332,12 +332,7 @@ export class JobQueue extends EventEmitter {
         case 'FAILED':
           metrics.failed = _count
           break
-        case 'RETRYING':
-          metrics.retrying = _count
-          break
-        case 'SCHEDULED':
-          metrics.scheduled = _count
-          break
+        // Note: RETRYING and SCHEDULED are now handled as PENDING in new schema
       }
     })
 

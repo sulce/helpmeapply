@@ -148,13 +148,30 @@ export function JobsViewer() {
 
       if (response.ok) {
         const data = await response.json()
-        // Refresh jobs and status after scan
-        setTimeout(() => {
+        
+        if (data.data.status === 'queued') {
+          // Background scanning - show user that it's running in background
+          alert(`${data.data.message}`)
+          
+          // Poll for updates every 10 seconds
+          const pollForUpdates = () => {
+            fetchJobs()
+            fetchScanStatus()
+            
+            // Continue polling for 2 minutes to catch background completion
+            setTimeout(() => {
+              fetchJobs()
+              fetchScanStatus()
+            }, 10000)
+          }
+          
+          pollForUpdates()
+        } else {
+          // Legacy response format - immediate completion
+          alert(`Scan completed! ${data.data.message}`)
           fetchJobs()
           fetchScanStatus()
-        }, 1000)
-        
-        alert(`Scan completed! ${data.data.message}`)
+        }
       } else {
         const errorData = await response.json()
         alert(`Scan failed: ${errorData.error}`)
@@ -201,21 +218,21 @@ export function JobsViewer() {
   return (
     <div className="space-y-6">
       {/* Header with scan controls */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Job Opportunities</h2>
-            <p className="text-sm text-gray-600">AI-found jobs matching your profile</p>
+      <Card className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">Job Opportunities</h2>
+            <p className="text-xs sm:text-sm text-gray-600">AI-found jobs matching your profile</p>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <Button
               onClick={startManualScan}
               isLoading={isManualScanning}
               size="sm"
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm whitespace-nowrap"
             >
-              <Search className="h-4 w-4 mr-2" />
+              <Search className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               {isManualScanning ? 'Scanning...' : 'Scan Now'}
             </Button>
             
@@ -223,10 +240,10 @@ export function JobsViewer() {
               onClick={() => fetchJobs()}
               variant="outline"
               size="sm"
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm px-2 sm:px-3"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline ml-1">Refresh</span>
             </Button>
           </div>
         </div>
@@ -255,23 +272,28 @@ export function JobsViewer() {
         )}
 
         {/* Filter tabs */}
-        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 overflow-x-auto">
           {[
-            { key: 'new', label: 'New (24h)' },
-            { key: 'available', label: 'Available' },
+            { key: 'new', label: 'New (24h)', shortLabel: 'New' },
+            { key: 'available', label: 'Available', shortLabel: 'Open' },
             { key: 'applied', label: 'Applied' },
             { key: 'all', label: 'All' }
           ].map(tab => (
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key as any)}
-              className={`px-3 py-2 text-sm rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
                 filter === tab.key
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {tab.label} {filter === tab.key && pagination.totalCount > 0 && `(${pagination.totalCount})`}
+              <span className="sm:hidden">
+                {tab.shortLabel || tab.label} {filter === tab.key && pagination.totalCount > 0 && `(${pagination.totalCount})`}
+              </span>
+              <span className="hidden sm:inline">
+                {tab.label} {filter === tab.key && pagination.totalCount > 0 && `(${pagination.totalCount})`}
+              </span>
             </button>
           ))}
         </div>

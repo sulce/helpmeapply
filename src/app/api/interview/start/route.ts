@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { checkUsageLimit, incrementUsage } from '@/lib/billing/usageTracking'
 
 interface StartInterviewRequest {
   applicationId: string
@@ -26,6 +27,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Application ID is required' },
         { status: 400 }
+      )
+    }
+
+    // Check mock interview usage limit before proceeding
+    const canStartInterview = await checkUsageLimit(session.user.id, 'mock_interview')
+    if (!canStartInterview) {
+      return NextResponse.json(
+        { 
+          error: 'Mock interview limit reached for current billing period',
+          quotaExceeded: true,
+          upgradeRequired: true
+        },
+        { status: 402 }
       )
     }
 
@@ -75,6 +89,17 @@ export async function POST(req: NextRequest) {
           existing: true
         }
       })
+    }
+
+    // Increment mock interview usage for new sessions
+    try {
+      await incrementUsage(session.user.id, 'mock_interview')
+    } catch (error) {
+      console.error('Failed to increment mock interview usage:', error)
+      return NextResponse.json(
+        { error: 'Mock interview limit reached for current billing period' },
+        { status: 402 }
+      )
     }
 
     // Create new interview session

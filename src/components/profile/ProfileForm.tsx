@@ -53,7 +53,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
       preferredLocations: [],
       employmentTypes: [],
       linkedinUrl: '',
-      indeedProfile: '',
     },
   })
 
@@ -390,15 +389,6 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                 {...register('linkedinUrl')}
                 error={errors.linkedinUrl?.message}
                 placeholder="https://linkedin.com/in/your-profile"
-              />
-            </div>
-            <div>
-              <Label htmlFor="indeedProfile">Indeed Profile</Label>
-              <Input
-                id="indeedProfile"
-                {...register('indeedProfile')}
-                error={errors.indeedProfile?.message}
-                placeholder="Indeed profile username or URL"
               />
             </div>
           </div>

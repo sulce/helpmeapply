@@ -17,7 +17,7 @@ import { ResumeAnalytics } from '@/components/dashboard/ResumeAnalytics'
 import { AIInsights } from '@/components/dashboard/AIInsights'
 import { InterviewHistory } from '@/components/interview/InterviewHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
-import { User, Settings, Search, FileText, BarChart3, Upload, Zap, RefreshCw, Home, Target, Brain, Mic } from 'lucide-react'
+import { User, Settings, Search, FileText, BarChart3, Upload, Zap, RefreshCw, Home, Target, Brain, Mic, CreditCard, Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { shouldShowOnboarding, calculateProfileCompletion, parseProfileData } from '@/lib/profileCompletion'
@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false)
   const [jobStats, setJobStats] = useState<any>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [usageData, setUsageData] = useState<any>(null)
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -146,6 +147,18 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const fetchUsageData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/plans/usage')
+      if (response.ok) {
+        const data = await response.json()
+        setUsageData(data.usage)
+      }
+    } catch (error) {
+      console.error('Error fetching usage data:', error)
+    }
+  }, [])
+
   const startJobScan = async () => {
     try {
       setIsScanning(true)
@@ -178,8 +191,9 @@ export default function DashboardPage() {
       fetchApplications()
       fetchAutoApplySettings()
       fetchJobStats()
+      fetchUsageData()
     }
-  }, [status, router, fetchProfile, fetchApplications, fetchAutoApplySettings, fetchJobStats])
+  }, [status, router, fetchProfile, fetchApplications, fetchAutoApplySettings, fetchJobStats, fetchUsageData])
 
   // Refresh profile data when window regains focus (e.g., returning from Resume Builder)
   useEffect(() => {
@@ -261,7 +275,7 @@ export default function DashboardPage() {
 
   return (
     <Sidebar>
-      <div className="p-3 lg:p-4">
+      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
         <div className="space-y-4">
           {/* Welcome Section */}
           <div className="bg-white shadow rounded-lg p-4 lg:p-6">
@@ -283,6 +297,66 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Subscription Status Section */}
+          {usageData && (
+            <div className="bg-white shadow rounded-lg p-4 lg:p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <CreditCard className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {usageData.planTitle}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {usageData.isTrialActive 
+                        ? `Trial - ${usageData.daysRemainingInPeriod} days remaining`
+                        : 'Active Subscription'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {usageData.autoApplications.used}/{usageData.autoApplications.limit === Infinity ? '∞' : usageData.autoApplications.limit}
+                      </div>
+                      <div className="text-gray-500">Auto Apps</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {usageData.mockInterviews.used}/{usageData.mockInterviews.limit || 'N/A'}
+                      </div>
+                      <div className="text-gray-500">Interviews</div>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => router.push('/billing')}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    Manage Plan
+                  </Button>
+                </div>
+              </div>
+              {usageData.isTrialActive && usageData.daysRemainingInPeriod <= 2 && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 text-yellow-600 mr-2" />
+                    <div className="text-sm text-yellow-800">
+                      Your trial expires soon. Upgrade to continue using all features.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Profile Completion Section */}
           <div className="mb-6">

@@ -68,22 +68,62 @@ export function ApplicationMaterialsModal({
   }, [isOpen, application, activeTab])
 
   const hasResumeData = () => {
-    return (application?.customizedResumes && application.customizedResumes.length > 0) || application?.resumeCustomizationData
+    return application?.customizedResumeUrl || application?.resumeCustomizationData || (application?.customizedResumes && application.customizedResumes.length > 0)
   }
 
   const fetchCustomizedResume = async () => {
     if (!application) return
     
-    const customizedResumeInfo = application.customizedResumes?.[0]
-    if (!customizedResumeInfo) {
-      setError('No customized resume found')
-      return
-    }
-    
     setIsLoading(true)
     setError(null)
     
     try {
+      // First try to use data directly from the application record
+      if (application.customizedResumeUrl || application.resumeCustomizationData) {
+        let customizationData: any = {}
+        let customizationNotes: string[] = []
+        let keywordMatches: string[] = []
+        let matchScore: number | undefined
+        
+        // Parse resumeCustomizationData if available
+        if (application.resumeCustomizationData) {
+          try {
+            customizationData = JSON.parse(application.resumeCustomizationData)
+            customizationNotes = customizationData.customizationNotes || []
+            keywordMatches = customizationData.keywordMatches || []
+            matchScore = customizationData.matchScore || application.matchScore
+          } catch (e) {
+            console.log('Could not parse resumeCustomizationData:', e)
+          }
+        }
+        
+        // Create a resume object from the application data
+        const resume = {
+          id: `app-${application.id}`,
+          jobTitle: application.jobTitle,
+          company: application.company,
+          customizedContent: 'Resume content available via download',
+          customizationNotes: customizationNotes,
+          suggestedImprovements: [],
+          keywordMatches: keywordMatches,
+          matchScore: matchScore,
+          originalResumeUrl: application.customizedResumeUrl,
+          customizedResumeUrl: application.customizedResumeUrl,
+          createdAt: application.createdAt || new Date().toISOString(),
+          updatedAt: application.updatedAt || new Date().toISOString()
+        }
+        
+        setCustomizedResume(resume)
+        return
+      }
+      
+      // Fallback to the original method for legacy applications
+      const customizedResumeInfo = application.customizedResumes?.[0]
+      if (!customizedResumeInfo) {
+        setError('No customized resume found')
+        return
+      }
+      
       const response = await fetch(`/api/resume/customized/${customizedResumeInfo.id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch customized resume')

@@ -31,10 +31,11 @@ export async function GET() {
       },
       take: 10,
       select: {
-        jobId: true,
+        id: true,
+        type: true,
         status: true,
         priority: true,
-        attempts: true,
+        attemptCount: true,
         maxAttempts: true,
         createdAt: true,
         processedAt: true,
@@ -42,22 +43,11 @@ export async function GET() {
       },
     })
 
-    // Parse job types from errorMessage for recent jobs
-    const parsedRecentJobs = recentJobs.map((job: any) => {
-      let jobType = 'unknown'
-      try {
-        const metadata = JSON.parse(job.errorMessage || '{}')
-        jobType = metadata.type || 'unknown'
-      } catch {
-        // Ignore parsing errors
-      }
-
-      return {
-        ...job,
-        type: jobType,
-        errorMessage: undefined, // Don't expose internal error messages
-      }
-    })
+    // Use type field directly from new schema
+    const parsedRecentJobs = recentJobs.map((job: any) => ({
+      ...job,
+      errorMessage: undefined, // Don't expose internal error messages
+    }))
 
     // Get user's job scanning stats with optimized parallel queries
     const today = new Date()

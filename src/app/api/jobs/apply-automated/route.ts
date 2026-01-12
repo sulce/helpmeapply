@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { consumeAutoApplication, checkAutoApplicationQuota } from '@/lib/plans/enforcement'
 import { z } from 'zod'
 
 const automatedApplySchema = z.object({
@@ -46,6 +47,24 @@ export async function POST(req: NextRequest) {
       useAutomation,
       prepareOnly
     })
+
+    // For automated applications, check quota before proceeding
+    if (!prepareOnly && useAutomation) {
+      const quotaCheck = await checkAutoApplicationQuota(session.user.id)
+      if (!quotaCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: quotaCheck.reason || 'Auto application quota exceeded',
+            quotaExceeded: true,
+            remaining: quotaCheck.remaining,
+            limit: quotaCheck.limit
+          },
+          { status: 402 }
+        )
+      }
+      
+      console.log(`Auto application quota check passed: ${quotaCheck.remaining}/${quotaCheck.limit} remaining`)
+    }
 
     // Get job details
     const job = await prisma.job.findUnique({
@@ -141,8 +160,15 @@ export async function POST(req: NextRequest) {
 
     // Create response based on automation result
     if (applicationResult.success && applicationResult.method === 'automated') {
-      // Successful automation - mark as applied immediately
-      console.log('Automation successful, creating application record...')
+      // Successful automation - consume quota and mark as applied
+      console.log('Automation successful, consuming quota and creating application record...')
+      
+      // Consume auto application quota
+      const quotaConsumed = await consumeAutoApplication(session.user.id)
+      if (!quotaConsumed) {
+        console.error('Failed to consume auto application quota after successful automation')
+        // Continue anyway since application was successful, but log the issue
+      }
       
       // Update job status
       await prisma.job.update({

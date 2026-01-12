@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
+import { withSubscription } from '@/lib/billing'
+import { checkUsageLimit, incrementUsage } from '@/lib/billing/usageTracking'
 import { z } from 'zod'
 
 const createApplicationSchema = z.object({
@@ -25,23 +27,33 @@ const updateApplicationSchema = z.object({
   notes: z.string().optional(),
 })
 
-export async function POST(req: NextRequest) {
+export const POST = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const body = await req.json()
     const data = createApplicationSchema.parse(body)
 
+    // Check if this is an auto application (has source specified)
+    const isAutoApplication = data.source && data.source !== 'manual'
+
+    // For auto applications, check usage limit
+    if (isAutoApplication) {
+      const canApply = await checkUsageLimit(user.id, 'auto_application')
+      if (!canApply) {
+        return NextResponse.json(
+          { 
+            error: 'Auto application limit reached for current billing period',
+            quotaExceeded: true,
+            upgradeRequired: true
+          },
+          { status: 402 }
+        )
+      }
+    }
+
+    // Create the application
     const application = await prisma.application.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         jobTitle: data.jobTitle,
         company: data.company,
         jobDescription: data.jobDescription,
@@ -56,6 +68,17 @@ export async function POST(req: NextRequest) {
         notes: data.notes,
       },
     })
+
+    // If this was an auto application, increment the usage counter
+    if (isAutoApplication) {
+      try {
+        await incrementUsage(user.id, 'auto_application')
+        console.log(`Auto application usage incremented for user ${user.id}`)
+      } catch (usageError) {
+        console.error('Failed to increment usage:', usageError)
+        // Even if usage increment fails, we keep the application since it was already created
+      }
+    }
 
     return NextResponse.json({ application }, { status: 201 })
   } catch (error) {
@@ -73,7 +96,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})
 
 export async function GET(req: NextRequest) {
   try {
@@ -96,13 +119,35 @@ export async function GET(req: NextRequest) {
       ...(status && { status: status as any }),
     }
 
+    console.log('Applications API - Fetching applications for user:', session.user.id)
+    
     const [applications, total] = await Promise.all([
       prisma.application.findMany({
         where,
         orderBy: { appliedAt: 'desc' },
         take: limit,
         skip: offset,
-        include: {
+        select: {
+          id: true,
+          jobTitle: true,
+          company: true,
+          jobDescription: true,
+          jobUrl: true,
+          location: true,
+          salaryRange: true,
+          employmentType: true,
+          status: true,
+          appliedAt: true,
+          responseAt: true,
+          notes: true,
+          coverLetter: true,
+          customizedResumeUrl: true,
+          resumeCustomizationData: true,
+          matchScore: true,
+          source: true,
+          sourceJobId: true,
+          createdAt: true,
+          updatedAt: true,
           customizedResumes: {
             select: {
               id: true,
@@ -115,6 +160,22 @@ export async function GET(req: NextRequest) {
       }),
       prisma.application.count({ where }),
     ])
+
+    console.log('Applications API - Found applications:', applications.length)
+    
+    // Debug: Log first application's data structure
+    if (applications.length > 0) {
+      const firstApp = applications[0]
+      console.log('Applications API - First application data:', {
+        id: firstApp.id,
+        jobTitle: firstApp.jobTitle,
+        company: firstApp.company,
+        hasCoverLetter: !!firstApp.coverLetter,
+        hasCustomizedResumeUrl: !!firstApp.customizedResumeUrl,
+        hasResumeCustomizationData: !!firstApp.resumeCustomizationData,
+        customizedResumesCount: firstApp.customizedResumes?.length || 0
+      })
+    }
 
     // Calculate some stats
     const stats = await prisma.application.groupBy({

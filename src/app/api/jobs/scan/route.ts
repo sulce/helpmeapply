@@ -1,28 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { jobScanner } from '@/lib/jobScanner'
+import { withSubscription } from '@/lib/billing'
+import { queueManager } from '@/lib/queue/QueueManager'
 
-export async function POST(req: NextRequest) {
+export const POST = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // ChatGPT Specification: enqueueJob() interface - business logic agnostic
+    // This uses the abstracted queue interface, can be Database/Redis/SQS
+    const jobId = await queueManager.enqueueUserJobScan(user.id)
 
-    // Start job scanning process
-    const results = await jobScanner.scanAndProcessJobs(session.user.id)
-
+    // API returns immediately - no blocking on AI or long processing
     return NextResponse.json({
       success: true,
       data: {
-        processed: results.processed,
-        applied: results.applied,
-        message: `Processed ${results.processed} jobs, applied to ${results.applied} positions`
+        jobId,
+        status: 'queued',
+        message: 'Job scanning queued for background processing. Jobs will appear as they are found and analyzed.'
       }
     })
 
@@ -41,25 +33,23 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})
 
-export async function GET(req: NextRequest) {
+export const GET = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get job queue status
-    const queueStatus = await jobScanner.getJobQueueStatus(session.user.id)
+    // Get queue metrics using abstracted interface
+    const metrics = await queueManager.getMetrics()
 
     return NextResponse.json({
       success: true,
-      data: queueStatus
+      data: {
+        isScanning: metrics.processing > 0,
+        pendingJobs: metrics.pending,
+        processingJobs: metrics.processing,
+        failedJobs: metrics.failed,
+        completedJobs: metrics.completed,
+        activeWorkers: metrics.workers
+      }
     })
 
   } catch (error) {
@@ -69,4 +59,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

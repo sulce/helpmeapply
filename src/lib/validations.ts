@@ -47,7 +47,6 @@ export const profileSchema = z.object({
       return false
     }
   }, { message: 'Invalid LinkedIn URL format' }),
-  indeedProfile: z.string().optional(),
   resumeUrl: z.string().optional(),
   skills: z.array(skillSchema).optional(),
 })
@@ -64,7 +63,6 @@ export const profileDraftSchema = z.object({
   preferredLocations: z.any().optional(),
   employmentTypes: z.any().optional(),
   linkedinUrl: z.any().optional(),
-  indeedProfile: z.any().optional(),
   resumeUrl: z.any().optional(),
   skills: z.any().optional(),
 })

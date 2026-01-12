@@ -1,6 +1,6 @@
 import { jobQueue } from './JobQueue'
 import { JobType } from './types'
-import { handleUserJobScan, handleAutomatedJobScan, handleProcessJobMatches } from './handlers/jobScanHandler'
+import { handleUserJobScan, handleAutomatedJobScan, handleProcessJobMatches, handleAnalyzeJobMatch } from './handlers/jobScanHandler'
 import { handleCleanupExpiredReviews, handleCleanupExpiredNotifications, handleCleanupOldJobs, handleDailyMaintenanceCleanup } from './handlers/cleanupHandler'
 import { PrismaClient } from '@prisma/client'
 
@@ -89,6 +89,13 @@ export class JobScheduler {
       type: JobType.PROCESS_JOB_MATCHES,
       handler: handleProcessJobMatches,
       timeout: 180000, // 3 minutes
+    })
+
+    jobQueue.registerHandler({
+      type: JobType.ANALYZE_JOB_MATCH,
+      handler: handleAnalyzeJobMatch,
+      timeout: 30000, // 30 seconds for AI analysis
+      concurrency: 5, // Process up to 5 AI analyses concurrently
     })
 
     jobQueue.registerHandler({
@@ -237,6 +244,7 @@ export class JobScheduler {
     const priorities: Record<JobType, number> = {
       [JobType.USER_JOB_SCAN]: 10, // Highest priority - user-initiated
       [JobType.PROCESS_JOB_MATCHES]: 9,
+      [JobType.ANALYZE_JOB_MATCH]: 8, // High priority for background AI analysis
       [JobType.AUTOMATED_JOB_SCAN]: 7,
       [JobType.GENERATE_COVER_LETTER]: 6,
       [JobType.CUSTOMIZE_RESUME]: 6,

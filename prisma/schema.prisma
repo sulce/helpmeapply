@@ -47,6 +47,26 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Stripe billing fields
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  subscriptionStatus   String?   @map("subscription_status") // active, past_due, canceled, etc.
+  subscriptionId       String?   @map("subscription_id")
+  priceId              String?   @map("price_id")
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  cancelAtPeriodEnd    Boolean   @default(false) @map("cancel_at_period_end")
+
+  // Subscription plan and usage tracking
+  subscriptionPlan        String?   @default("free_trial") @map("subscription_plan") // free_trial, starter, pro, power
+  hasInterviewAddon       Boolean   @default(false) @map("has_interview_addon")
+  autoApplicationsUsed    Int       @default(0) @map("auto_applications_used")
+  autoApplicationsLimit   Int       @default(0) @map("auto_applications_limit")
+  mockInterviewsUsed      Int       @default(0) @map("mock_interviews_used")
+  mockInterviewsLimit     Int       @default(0) @map("mock_interviews_limit")
+  subscriptionPeriodStart DateTime? @map("subscription_period_start")
+  subscriptionPeriodEnd   DateTime? @map("subscription_period_end")
+  trialEndsAt             DateTime? @map("trial_ends_at")
+  trialExtensions         Int       @default(0) @map("trial_extensions") // Count of referral extensions
+
   accounts           Account[]
   sessions           Session[]
   profile            Profile?
@@ -57,6 +77,7 @@ model User {
   customizedResumes  CustomizedResume[]
   interviewSessions  InterviewSession[]
   jobScans           UserJobScan[]
+  usagePeriods       UsagePeriod[]
 
   @@map("users")
 }
@@ -237,29 +258,36 @@ model AutoApplySettings {
   @@map("auto_apply_settings")
 }
 
+// TODO: TEMPORARY - Migrate to Redis/SQS queue for production
+// This database-backed queue will be replaced with dedicated queue infrastructure
 model JobQueue {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  jobId       String     @map("job_id") @db.ObjectId
-  userId      String     @map("user_id")
-  status      QueueStatus @default(PENDING)
-  priority    Int        @default(1)
-  attempts    Int        @default(0)
-  maxAttempts Int        @default(3) @map("max_attempts")
-  errorMessage String?   @map("error_message")
-  processedAt DateTime? @map("processed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  type             String      // Job type (analyze_job_match, etc.)
+  payload          String      // JSON payload 
+  userId           String?     @map("user_id") // Optional user association
+  status           QueueStatus @default(PENDING)
+  priority         Int         @default(1)
+  attemptCount     Int         @default(0) @map("attempt_count") // ChatGPT requirement
+  maxAttempts      Int         @default(3) @map("max_attempts")
+  availableAt      DateTime    @default(now()) @map("available_at") // ChatGPT requirement for backoff
+  errorMessage     String?     @map("error_message")
+  processedAt      DateTime?   @map("processed_at")
+  deduplicationKey String?     @map("deduplication_key") // Prevent duplicate jobs
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
+  // Index for efficient queue polling with row-level locking
+  @@index([status, availableAt, priority])
+  @@index([deduplicationKey]) // Unique job prevention
   @@map("job_queue")
 }
 
+// ChatGPT requirement: specific status enum
 enum QueueStatus {
   PENDING
-  PROCESSING
+  PROCESSING  
   COMPLETED
   FAILED
-  RETRYING
-  SCHEDULED
 }
 
 model JobNotification {
@@ -459,4 +487,52 @@ enum InterviewStatus {
   COMPLETED
   PAUSED
   CANCELLED
+}
+
+model StripeEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId      String   @unique @map("event_id") // Stripe event ID for idempotency
+  type         String   @map("type") // Stripe event type
+  processedAt  DateTime @default(now()) @map("processed_at")
+  payload      String?  @map("payload") // Optional JSON payload for debugging
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("stripe_events")
+}
+
+// Billing period-based usage tracking
+model UsagePeriod {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String   @map("user_id") @db.ObjectId
+  periodStart           DateTime @map("period_start")
+  periodEnd             DateTime @map("period_end")
+  subscriptionId        String?  @map("subscription_id") // Stripe subscription ID for this period
+  priceId               String?  @map("price_id") // Stripe price ID for this period
+  planType              String   @map("plan_type") // free_trial, starter, pro, power
+  
+  // Usage counters for this billing period
+  autoApplicationsUsed  Int      @default(0) @map("auto_applications_used")
+  mockInterviewsUsed    Int      @default(0) @map("mock_interviews_used")
+  
+  // Plan limits for this period (copied from entitlements at period start)
+  autoApplicationsLimit Int      @map("auto_applications_limit")
+  mockInterviewsLimit   Int      @map("mock_interviews_limit")
+  
+  // Add-ons active during this period
+  hasInterviewAddon     Boolean  @default(false) @map("has_interview_addon")
+  addonPriceIds         String?  @map("addon_price_ids") // JSON array of active add-on price IDs
+  
+  // Period status
+  isActive              Boolean  @default(true) @map("is_active")
+  isTrial               Boolean  @default(false) @map("is_trial")
+  
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart]) // One period per user per start date
+  @@index([userId, isActive]) // Query active periods efficiently
+  @@index([periodEnd]) // Query expiring periods
+  @@map("usage_periods")
 }

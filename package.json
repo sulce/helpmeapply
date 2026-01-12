@@ -14,6 +14,10 @@
     "db:push": "prisma db push",
     "db:reset": "prisma migrate reset",
     "db:deploy": "prisma migrate deploy",
+    "worker:run": "tsx src/scripts/queue-worker.ts",
+    "worker:dev": "tsx watch src/scripts/queue-worker.ts",
+    "queue:start": "tsx src/scripts/queue-worker.ts",
+    "queue:dev": "tsx watch src/scripts/queue-worker.ts",
     "job-queue:start": "npx ts-node src/scripts/start-job-queue.ts",
     "job-queue:dev": "npx ts-node --watch src/scripts/start-job-queue.ts",
     "postbuild": "prisma generate"
@@ -59,6 +63,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
+    "stripe": "^20.1.2",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
@@ -67,5 +72,8 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
   }
 }

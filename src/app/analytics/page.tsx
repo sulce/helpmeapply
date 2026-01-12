@@ -32,7 +32,7 @@ export default function AnalyticsPage() {
 
   return (
     <Sidebar>
-      <div className="p-3 lg:p-4">
+      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
         <div className="max-w-7xl">
           <div className="mb-4">
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">

@@ -151,11 +151,12 @@ class BackgroundJobManager {
         where: { id: job.id },
         data: { 
           status: 'PROCESSING',
-          attempts: job.attempts + 1,
+          attemptCount: job.attemptCount + 1,
         },
       })
 
-      if (job.jobId.startsWith('scan_')) {
+      const payload = JSON.parse(job.payload)
+      if (job.type === 'user_job_scan' || payload.scanId?.startsWith('scan_')) {
         const result = await jobScanner.scanAndProcessJobs(job.userId)
         
         await prisma.jobQueue.update({
@@ -171,11 +172,11 @@ class BackgroundJobManager {
     } catch (error) {
       console.error(`Error processing job ${job.id}:`, error)
       
-      const shouldRetry = job.attempts < job.maxAttempts
+      const shouldRetry = job.attemptCount < job.maxAttempts
       await prisma.jobQueue.update({
         where: { id: job.id },
         data: { 
-          status: shouldRetry ? 'RETRYING' : 'FAILED',
+          status: shouldRetry ? 'PENDING' : 'FAILED', // Use PENDING for retries in new schema
           errorMessage: error instanceof Error ? error.message : 'Unknown error',
         },
       })

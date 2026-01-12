@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { analyzeJobMatch, generateCoverLetter } from './openai'
 import { createJobSearchService, JobSearchParams, NormalizedJob } from './jobAPIs'
 import { ResumeCustomizationService } from './resumeCustomizationService'
+import { queueManager } from './queue/QueueManager' // New abstracted queue interface
 
 const prisma = new PrismaClient()
 
@@ -36,7 +37,6 @@ export class JobScanner {
 
     this.isScanning = true
     let processed = 0
-    let applied = 0
 
     try {
       const profile = await prisma.profile.findUnique({
@@ -47,95 +47,56 @@ export class JobScanner {
         },
       })
 
-      if (!profile?.autoApplySettings) {
+      if (!profile) {
         return { processed: 0, applied: 0 }
       }
 
-      const settings = profile.autoApplySettings
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      const applicationsToday = await prisma.application.count({
-        where: {
-          userId,
-          createdAt: {
-            gte: today,
-          },
-        },
-      })
-
-      const maxDaily = settings.maxApplicationsPerDay || 10
-      if (applicationsToday >= maxDaily) {
-        console.log(`Daily application limit reached: ${applicationsToday}/${maxDaily}`)
-        return { processed: 0, applied: 0 }
-      }
-
-      const jobListings = await this.fetchJobsFromSources(profile, settings)
+      console.log('🏗️ STAGE 1: Fetching and filtering jobs (non-AI)')
       
+      // STAGE 1: Synchronous non-AI filtering - get jobs immediately
+      const jobListings = await this.fetchJobsFromSources(profile, profile.autoApplySettings || {})
+      
+      console.log(`📦 Found ${jobListings.length} jobs from sources`)
+      
+      // Process jobs with non-AI filtering only
       for (const job of jobListings) {
-        if (applied >= (maxDaily - applicationsToday)) {
-          break
-        }
-
-        if (await this.shouldSkipJob(job, settings, userId)) {
+        if (await this.shouldSkipJob(job, profile.autoApplySettings || {}, userId)) {
           continue
         }
 
         const savedJob = await this.saveJobListing(job)
         processed++
 
-        // Always create a scan record so the job appears in the frontend
-        // This ensures scanned jobs are visible regardless of AI settings
+        // Always create a scan record so jobs appear immediately in frontend
         await this.createUserJobScan(profile.userId, savedJob.id)
         
-        if (settings.isEnabled) {
-          const matchResult = await this.evaluateJobMatch(savedJob, profile, settings)
-          
-          // Check if job meets auto-apply threshold
-          const meetsAutoApplyThreshold = matchResult.matchScore >= settings.minMatchScore
-          // Check if job meets notification threshold  
-          const meetsNotifyThreshold = matchResult.matchScore >= settings.notifyMinScore
-          
-          console.log(`Job match analysis: ${savedJob.title} at ${savedJob.company}`)
-          console.log(`  Match Score: ${Math.round(matchResult.matchScore * 100)}%`)
-          console.log(`  Auto-apply threshold (${Math.round(settings.minMatchScore * 100)}%): ${meetsAutoApplyThreshold}`)
-          console.log(`  Notification threshold (${Math.round(settings.notifyMinScore * 100)}%): ${meetsNotifyThreshold}`)
-          
-          // Create AI notifications only if job meets threshold
-          if (meetsNotifyThreshold) {
-            if (meetsAutoApplyThreshold) {
-              // High scoring job - check if we should auto-apply or need approval
-              if (settings.requireApproval) {
-                // Create notification for user review instead of auto-applying
-                if (settings.notifyOnMatch) {
-                  await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
-                }
-              } else if (settings.autoApplyEnabled) {
-                // Only auto-apply if explicitly enabled AND approval not required
-                await this.autoApplyToJob(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
-                applied++
-              } else {
-                // Auto-apply disabled - create notification if enabled
-                if (settings.notifyOnMatch) {
-                  await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
-                }
-              }
-            } else {
-              // Medium scoring job (above notify threshold but below auto-apply threshold)
-              if (settings.notifyOnMatch) {
-                await this.createJobNotification(savedJob, profile, matchResult.matchScore, matchResult.coverLetter)
-              }
-            }
-          }
+        // STAGE 2: Queue job for background AI analysis (if AI is enabled)
+        if (profile.autoApplySettings?.isEnabled) {
+          await this.queueJobForAIAnalysis(savedJob.id, userId)
         }
       }
 
-      return { processed, applied }
+      console.log(`✅ STAGE 1 COMPLETE: ${processed} jobs processed and available immediately`)
+      console.log(`🔄 STAGE 2: Queued ${processed} jobs for background AI analysis`)
+
+      return { processed, applied: 0 } // AI analysis happens in background
     } catch (error) {
       console.error('Job scanning error:', error)
       throw error
     } finally {
       this.isScanning = false
+    }
+  }
+
+  private async queueJobForAIAnalysis(jobId: string, userId: string): Promise<void> {
+    try {
+      // STAGE 2: Queue job for background AI analysis using abstracted interface
+      // Business logic doesn't know if this uses Database/Redis/SQS queue
+      await queueManager.enqueueAIAnalysis(jobId, userId)
+      console.log(`🔄 Queued job ${jobId} for AI analysis`)
+    } catch (error) {
+      console.error(`Failed to queue job ${jobId} for AI analysis:`, error)
+      // Don't throw - allow job scanning to continue even if queuing fails
     }
   }
 
@@ -672,7 +633,8 @@ export class JobScanner {
   async scheduleJobScan(userId: string) {
     await prisma.jobQueue.create({
       data: {
-        jobId: `scan_${Date.now()}`,
+        type: 'user_job_scan',
+        payload: JSON.stringify({ scanId: `scan_${Date.now()}` }),
         userId,
         status: 'PENDING',
         priority: 1,

@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { withSubscription } from '@/lib/billing'
 import { generateCoverLetter } from '@/lib/openai'
 
-export async function POST(req: NextRequest) {
+export const POST = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const { job, resumeData } = await req.json()
 
     if (!job || !resumeData) {
@@ -22,6 +12,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    console.log('Generating cover letter for job:', job.title, 'at', job.company, 'jobId:', job.id)
 
     const coverLetter = await generateCoverLetter({
       profile: {
@@ -41,6 +33,51 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    // Save cover letter to existing customized resume record if available
+    if (job.id && job.id !== 'preview') {
+      try {
+        const { prisma } = await import('@/lib/db')
+        
+        console.log('Saving cover letter to existing customized resume record...')
+        
+        // Update existing customized resume record with cover letter
+        const existingRecord = await prisma.customizedResume.findFirst({
+          where: {
+            userId: user.id,
+            jobId: job.id
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+        
+        if (existingRecord) {
+          // Parse existing customization data and add cover letter
+          let customizationData = {}
+          try {
+            customizationData = JSON.parse(existingRecord.customizationData || '{}')
+          } catch (e) {
+            console.log('Could not parse existing customization data, creating new object')
+          }
+          
+          await prisma.customizedResume.update({
+            where: { id: existingRecord.id },
+            data: {
+              customizationData: JSON.stringify({
+                ...customizationData,
+                coverLetter: coverLetter,
+                coverLetterGeneratedAt: new Date().toISOString()
+              })
+            }
+          })
+          
+          console.log('Cover letter saved to existing customized resume record:', existingRecord.id)
+        } else {
+          console.log('No existing customized resume record found for job:', job.id)
+        }
+      } catch (saveError) {
+        console.error('Failed to save cover letter (non-critical):', saveError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       coverLetter
@@ -53,4 +90,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

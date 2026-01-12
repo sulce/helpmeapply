@@ -238,7 +238,7 @@ export default function ProfilePage() {
 
   return (
     <Sidebar>
-      <div className="p-3 lg:p-4">
+      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
         <div className="max-w-4xl space-y-4">
           {/* Profile Completion Card */}
           {profileData && (
@@ -249,8 +249,8 @@ export default function ProfilePage() {
             />
           )}
 
-          {/* Profile Import Card */}
-          <ProfileImportCard />
+          {/* Profile Import Card - Temporarily hidden until ready */}
+          {/* <ProfileImportCard /> */}
           
           {/* Profile Form */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">

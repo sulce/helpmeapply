@@ -32,24 +32,24 @@ export function Header() {
                   <Link href="/profile" className="text-gray-600 hover:text-gray-900">
                     Profile
                   </Link>
+                  <Link href="/faq" className="text-gray-600 hover:text-gray-900">
+                    FAQ
+                  </Link>
                 </nav>
                 <span className="text-gray-700">Welcome, {session.user?.name}</span>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => signOut({ callbackUrl: '/' })}
                 >
                   Sign Out
                 </Button>
               </>
             ) : (
-              <div className="flex space-x-2">
-                <Link href="/login">
-                  <Button variant="outline">Sign In</Button>
+              <nav className="flex space-x-4">
+                <Link href="/faq" className="text-gray-600 hover:text-gray-900">
+                  FAQ
                 </Link>
-                <Link href="/register">
-                  <Button>Get Started</Button>
-                </Link>
-              </div>
+              </nav>
             )}
           </div>
         </div>

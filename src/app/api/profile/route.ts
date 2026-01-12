@@ -3,18 +3,10 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { profileSchema, profileDraftSchema } from '@/lib/validations'
 import { authOptions } from '@/lib/auth'
+import { withSubscription } from '@/lib/billing'
 
-export async function POST(req: NextRequest) {
+export const POST = withSubscription(async (req: NextRequest, { user }) => {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const body = await req.json()
     const { isDraft, ...profileData } = body
     
@@ -32,7 +24,7 @@ export async function POST(req: NextRequest) {
     // Prepare update data, only including defined fields
     const updateData: any = {}
     const createData: any = {
-      userId: session.user.id,
+      userId: user.id,
     }
 
     // Handle each field, providing defaults for create and only setting if defined for update
@@ -101,11 +93,6 @@ export async function POST(req: NextRequest) {
       createData.linkedinUrl = data.linkedinUrl
     }
 
-    if (data.indeedProfile !== undefined) {
-      updateData.indeedProfile = data.indeedProfile
-      createData.indeedProfile = data.indeedProfile
-    }
-
     if (data.resumeUrl !== undefined) {
       updateData.resumeUrl = data.resumeUrl
       createData.resumeUrl = data.resumeUrl
@@ -120,7 +107,7 @@ export async function POST(req: NextRequest) {
     createData.employmentTypes = createData.employmentTypes || '[]'
 
     const profile = await prisma.profile.upsert({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       update: updateData,
       create: createData,
     })
@@ -145,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     // Re-fetch the profile with skills and auto-apply settings to return the complete data
     const updatedProfile = await prisma.profile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       include: { 
         skills: true,
         autoApplySettings: true
@@ -174,7 +161,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
+})
 
 export async function GET(req: NextRequest) {
   try {
@@ -189,7 +176,7 @@ export async function GET(req: NextRequest) {
 
     let profile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
-      include: { 
+      include: {
         skills: true,
         autoApplySettings: true
       },
