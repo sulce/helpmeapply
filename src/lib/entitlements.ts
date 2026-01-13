@@ -37,7 +37,7 @@ export const PRICE_ID_TO_PLAN: Record<string, PlanEntitlement> = {
   },
 
   // Starter Plan
-  'price_1Snuu9Eqjyc8yXsXFLYlCf6L': {
+  'price_1Sp1XkAeDCtQUmgWkGqExwkd': {
     planId: 'starter',
     name: 'Starter Plan',
     description: 'Access the full platform after free trial',
@@ -51,7 +51,7 @@ export const PRICE_ID_TO_PLAN: Record<string, PlanEntitlement> = {
   },
 
   // Pro Plan  
-  'price_1SnuufEqjyc8yXsXaBMhtdK3': {
+  'price_1Sp1ZuAeDCtQUmgWhCFwuyBc': {
     planId: 'pro',
     name: 'Pro Plan',
     description: 'For active jobseekers seeking deeper support',
@@ -65,7 +65,7 @@ export const PRICE_ID_TO_PLAN: Record<string, PlanEntitlement> = {
   },
 
   // Power Plan
-  'price_1SnuvMEqjyc8yXsXCn4SJrwy': {
+  'price_1Sp1bHAeDCtQUmgWcgAPnXYG': {
     planId: 'power',
     name: 'Power Plan', 
     description: 'For intensive or time-sensitive job searches',
@@ -79,7 +79,7 @@ export const PRICE_ID_TO_PLAN: Record<string, PlanEntitlement> = {
   },
 
   // Interview Preparation Add-On
-  'price_1SnuvtEqjyc8yXsXrgvM4iqj': {
+  'price_1Sp1cvAeDCtQUmgWn0DbM8Jy': {
     planId: 'interview_addon',
     name: 'Interview Preparation Add-On',
     description: 'Add to Starter plan for AI-powered mock interviews',
