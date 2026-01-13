@@ -179,17 +179,17 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Complete Your Profile</h1>
-        <p className="mt-2 text-gray-600">Help us match you with the perfect job opportunities</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Complete Your Profile</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Help us match you with the perfect job opportunities</p>
       </div>
 
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 sm:space-y-8">
         {/* Personal Information */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Personal Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="fullName">Full Name *</Label>
               <Input
@@ -222,8 +222,8 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
         </div>
 
         {/* Job Preferences */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-semibold mb-4">Job Preferences</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Job Preferences</h2>
           
           {/* Job Titles */}
           <div className="space-y-4">
@@ -242,6 +242,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                       }
                     }
                   }}
+                  className="flex-1"
                 />
                 <Button
                   type="button"
@@ -252,6 +253,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
                       jobTitleInputRef.current.value = ''
                     }
                   }}
+                  className="flex-shrink-0"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -281,7 +283,7 @@ export function ProfileForm({ initialData, onSubmit, onSaveDraft }: ProfileFormP
             {/* Employment Types */}
             <div>
               <Label>Employment Types *</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-2">
                 {['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP', 'REMOTE'].map((type) => (
                   <label key={type} className="flex items-center space-x-2 cursor-pointer">
                     <input

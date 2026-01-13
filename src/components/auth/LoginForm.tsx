@@ -60,10 +60,10 @@ function LoginFormContent() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-6">
+    <div className="w-full max-w-md space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-        <p className="mt-2 text-gray-600">Sign in to your HelpMeApply AI account</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Sign in to your HelpMeApply AI account</p>
       </div>
 
       {message && (

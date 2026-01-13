@@ -238,8 +238,8 @@ export default function ProfilePage() {
 
   return (
     <Sidebar>
-      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
-        <div className="max-w-4xl space-y-4">
+      <div className="p-4 md:pt-4 md:pr-4 md:pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
+        <div className="max-w-4xl space-y-3 sm:space-y-4">
           {/* Profile Completion Card */}
           {profileData && (
             <ProfileCompletionCard 
@@ -254,34 +254,34 @@ export default function ProfilePage() {
           
           {/* Profile Form */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Profile Information</h2>
-              <p className="text-gray-600 mt-2">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Profile Information</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-2">
                 Tell us about yourself to help our AI find the perfect job matches.
               </p>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Status Message for Profile */}
               {profileStatus.type && (
-                <div className={`mb-6 p-4 rounded-lg border ${
-                  profileStatus.type === 'success' 
-                    ? 'bg-green-50 border-green-200 text-green-800' 
+                <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${
+                  profileStatus.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-800'
                     : 'bg-red-50 border-red-200 text-red-800'
                 }`}>
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
                       {profileStatus.type === 'success' ? (
-                        <CheckCircle className="h-5 w-5" />
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
-                        <AlertCircle className="h-5 w-5" />
+                        <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                       )}
                     </div>
-                    <div className="ml-3 flex-1">
-                      <p className="font-medium">{profileStatus.message}</p>
+                    <div className="ml-2 sm:ml-3 flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base">{profileStatus.message}</p>
                     </div>
                     <button
                       onClick={() => setProfileStatus({ type: null, message: '' })}
-                      className="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
+                      className="flex-shrink-0 ml-2 sm:ml-4 text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -298,34 +298,34 @@ export default function ProfilePage() {
 
           {/* AI Settings */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">AI Auto-Apply Settings</h2>
-              <p className="text-gray-600 mt-2">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">AI Auto-Apply Settings</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-2">
                 Configure how the AI automatically finds and applies to jobs that match your profile.
               </p>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Status Message */}
               {saveStatus.type && (
-                <div className={`mb-6 p-4 rounded-lg border ${
-                  saveStatus.type === 'success' 
-                    ? 'bg-green-50 border-green-200 text-green-800' 
+                <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border ${
+                  saveStatus.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-800'
                     : 'bg-red-50 border-red-200 text-red-800'
                 }`}>
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
                       {saveStatus.type === 'success' ? (
-                        <CheckCircle className="h-5 w-5" />
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                       ) : (
-                        <AlertCircle className="h-5 w-5" />
+                        <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                       )}
                     </div>
-                    <div className="ml-3 flex-1">
-                      <p className="font-medium">{saveStatus.message}</p>
+                    <div className="ml-2 sm:ml-3 flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base">{saveStatus.message}</p>
                       {saveStatus.details && saveStatus.details.length > 0 && (
                         <div className="mt-2">
-                          <p className="text-sm font-medium mb-1">Next steps:</p>
-                          <ul className="list-disc list-inside text-sm space-y-1">
+                          <p className="text-xs sm:text-sm font-medium mb-1">Next steps:</p>
+                          <ul className="list-disc list-inside text-xs sm:text-sm space-y-1">
                             {saveStatus.details.map((detail, index) => (
                               <li key={index}>{detail}</li>
                             ))}
@@ -335,7 +335,7 @@ export default function ProfilePage() {
                     </div>
                     <button
                       onClick={() => setSaveStatus({ type: null, message: '' })}
-                      className="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
+                      className="flex-shrink-0 ml-2 sm:ml-4 text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     >
                       <X className="h-4 w-4" />
                     </button>

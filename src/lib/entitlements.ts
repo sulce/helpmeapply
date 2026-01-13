@@ -67,7 +67,7 @@ export const PRICE_ID_TO_PLAN: Record<string, PlanEntitlement> = {
   // Power Plan
   'price_1Sp1bHAeDCtQUmgWcgAPnXYG': {
     planId: 'power',
-    name: 'Power Plan', 
+    name: 'Power Plan',
     description: 'For intensive or time-sensitive job searches',
     limits: {
       autoApplicationsPerMonth: 120,
@@ -111,7 +111,7 @@ export function getPlanById(planId: string): PlanEntitlement | null {
  * Calculate user's effective limits considering add-ons
  */
 export function calculateEffectiveLimits(
-  basePriceId: string, 
+  basePriceId: string,
   addonPriceIds: string[] = []
 ): PlanLimits {
   const basePlan = getPlanFromPriceId(basePriceId)
@@ -129,7 +129,7 @@ export function calculateEffectiveLimits(
       // Add-ons increase limits (don't replace them)
       effectiveLimits.mockInterviewsPerMonth += addon.limits.mockInterviewsPerMonth
       effectiveLimits.autoApplicationsPerMonth += addon.limits.autoApplicationsPerMonth
-      
+
       // Boolean features are OR'd
       effectiveLimits.hasAdvancedAnalytics = effectiveLimits.hasAdvancedAnalytics || addon.limits.hasAdvancedAnalytics
       effectiveLimits.hasPriorityProcessing = effectiveLimits.hasPriorityProcessing || addon.limits.hasPriorityProcessing

@@ -275,7 +275,7 @@ export default function DashboardPage() {
 
   return (
     <Sidebar>
-      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
+      <div className="p-4 md:pt-4 md:pr-4 md:pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
         <div className="space-y-4">
           {/* Welcome Section */}
           <div className="bg-white shadow rounded-lg p-4 lg:p-6">
@@ -286,11 +286,11 @@ export default function DashboardPage() {
                     <User className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-1 sm:mb-2 truncate">
                     Welcome back, {session.user?.name || 'Job Seeker'}!
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-sm sm:text-base text-gray-600 line-clamp-2">
                     Your AI-powered job application assistant is ready to help you find and apply to your dream jobs.
                   </p>
                 </div>
@@ -301,45 +301,45 @@ export default function DashboardPage() {
           {/* Subscription Status Section */}
           {usageData && (
             <div className="bg-white shadow rounded-lg p-4 lg:p-6 mb-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                       <CreditCard className="h-6 w-6 text-green-600" />
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                       {usageData.planTitle}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {usageData.isTrialActive 
+                      {usageData.isTrialActive
                         ? `Trial - ${usageData.daysRemainingInPeriod} days remaining`
                         : 'Active Subscription'
                       }
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
+                <div className="flex flex-col sm:items-end gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm w-full sm:w-auto">
+                    <div className="text-center sm:text-right">
                       <div className="font-medium text-gray-900">
                         {usageData.autoApplications.used}/{usageData.autoApplications.limit === Infinity ? '∞' : usageData.autoApplications.limit}
                       </div>
-                      <div className="text-gray-500">Auto Apps</div>
+                      <div className="text-xs sm:text-sm text-gray-500">Auto Apps</div>
                     </div>
-                    <div>
+                    <div className="text-center sm:text-right">
                       <div className="font-medium text-gray-900">
                         {usageData.mockInterviews.used}/{usageData.mockInterviews.limit || 'N/A'}
                       </div>
-                      <div className="text-gray-500">Interviews</div>
+                      <div className="text-xs sm:text-sm text-gray-500">Interviews</div>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => router.push('/billing')}
                     variant="outline"
                     size="sm"
-                    className="mt-2"
+                    className="w-full sm:w-auto"
                   >
                     Manage Plan
                   </Button>
@@ -369,31 +369,35 @@ export default function DashboardPage() {
 
           {/* Tabbed Dashboard */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <div className="border-b border-gray-200">
-              <TabsList className="w-full justify-start bg-transparent p-0 h-auto">
-                <TabsTrigger value="overview" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <Home className="h-4 w-4" />
+            <div className="border-b border-gray-200 overflow-x-auto">
+              <TabsList className="w-full justify-start bg-transparent p-0 h-auto inline-flex min-w-full">
+                <TabsTrigger value="overview" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 sm:pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <Home className="h-4 w-4 flex-shrink-0" />
                   <span>Overview</span>
                 </TabsTrigger>
-                <TabsTrigger value="performance" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <Target className="h-4 w-4" />
-                  <span>Performance</span>
+                <TabsTrigger value="performance" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 sm:pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <Target className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Performance</span>
+                  <span className="sm:hidden">Perf</span>
                 </TabsTrigger>
-                <TabsTrigger value="resume" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <FileText className="h-4 w-4" />
+                <TabsTrigger value="resume" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 sm:pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <FileText className="h-4 w-4 flex-shrink-0" />
                   <span>Resume</span>
                 </TabsTrigger>
-                <TabsTrigger value="insights" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <Brain className="h-4 w-4" />
-                  <span>AI Insights</span>
+                <TabsTrigger value="insights" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 sm:pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <Brain className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">AI Insights</span>
+                  <span className="sm:hidden">AI</span>
                 </TabsTrigger>
-                <TabsTrigger value="interviews" className="flex items-center space-x-2 pb-3 px-0 pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <Mic className="h-4 w-4" />
-                  <span>Interview Practice</span>
+                <TabsTrigger value="interviews" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 sm:pr-8 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <Mic className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Interview Practice</span>
+                  <span className="sm:hidden">Interview</span>
                 </TabsTrigger>
-                <TabsTrigger value="applications" className="flex items-center space-x-2 pb-3 px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Applications</span>
+                <TabsTrigger value="applications" className="flex items-center space-x-1 sm:space-x-2 pb-3 px-2 sm:px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 text-xs sm:text-sm whitespace-nowrap">
+                  <BarChart3 className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Applications</span>
+                  <span className="sm:hidden">Apps</span>
                 </TabsTrigger>
               </TabsList>
             </div>

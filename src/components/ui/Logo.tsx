@@ -25,7 +25,7 @@ export function Logo({ className, size = 'md', showText = true, href = '/' }: Lo
   const logoContent = (
     <div className={cn('flex items-center space-x-2', className)}>
       <Image
-        src="https://res.cloudinary.com/drvfzwgjm/image/upload/v1761079284/6d9abdda-f20a-4568-8638-09bc7f5949c5_bzags5.jpg"
+        src="https://res.cloudinary.com/drvfzwgjm/image/upload/v1768340308/PHOTO-2026-01-13-16-24-15_avhk6s.jpg"
         alt="HelpMeApply AI Logo"
         width={size === 'sm' ? 32 : size === 'md' ? 40 : 48}
         height={size === 'sm' ? 32 : size === 'md' ? 40 : 48}

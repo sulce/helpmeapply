@@ -6,7 +6,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
@@ -24,7 +24,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Let AI handle the tedious work while you focus on what matters. Customize resumes, generate cover letters, and apply to jobs in seconds.
+              Let HelpMeApply handle the tedious work while you focus on what matters. Customize resumes, generate cover letters, and apply to jobs in seconds.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -46,7 +46,7 @@ export default function HomePage() {
             </div>
 
             <p className="text-sm text-gray-500 mt-6">
-              <span className="font-semibold">24-hour free trial</span> • No credit card required • Cancel anytime
+              <span className="font-semibold">24-hour free trial</span> • Cancel anytime
             </p>
           </div>
         </div>
@@ -238,7 +238,7 @@ export default function HomePage() {
           </div>
           <div className="text-center pt-8 border-t border-gray-200">
             <p className="text-sm text-gray-500">
-              © 2026 HelpMeApply AI. AI-powered career advancement platform.
+              © 2026 HMI AI. AI-powered career advancement platform.
             </p>
           </div>
         </div>

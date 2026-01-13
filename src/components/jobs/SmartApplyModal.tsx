@@ -159,8 +159,8 @@ export function SmartApplyModal({
   if (step === 'submitting') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <Card className="max-w-md w-full">
-          <div className="p-8 text-center">
+        <Card className="w-full max-w-md">
+          <div className="p-6 sm:p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <h3 className="text-lg font-semibold mb-2">Submitting Application</h3>
             <p className="text-gray-600 text-sm">
@@ -181,14 +181,14 @@ export function SmartApplyModal({
   if (step === 'success') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <Card className="max-w-md w-full">
-          <div className="p-6">
+        <Card className="w-full max-w-md">
+          <div className="p-4 sm:p-6">
             <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-                <h2 className="text-xl font-bold text-green-700">Application Submitted!</h2>
+              <div className="flex items-center min-w-0">
+                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mr-2 sm:mr-3 flex-shrink-0" />
+                <h2 className="text-lg sm:text-xl font-bold text-green-700">Application Submitted!</h2>
               </div>
-              <Button variant="outline" size="sm" onClick={handleClose}>
+              <Button variant="outline" size="sm" onClick={handleClose} className="min-h-[44px] min-w-[44px]">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -209,7 +209,7 @@ export function SmartApplyModal({
                 </ul>
               </div>
               
-              <Button onClick={handleClose} className="w-full">
+              <Button onClick={handleClose} className="w-full min-h-[44px]">
                 Done
               </Button>
             </div>
@@ -222,14 +222,14 @@ export function SmartApplyModal({
   if (step === 'error') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <Card className="max-w-md w-full">
-          <div className="p-6">
+        <Card className="w-full max-w-md">
+          <div className="p-4 sm:p-6">
             <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-8 w-8 text-red-600 mr-3" />
-                <h2 className="text-xl font-bold text-red-700">Application Failed</h2>
+              <div className="flex items-center min-w-0">
+                <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 mr-2 sm:mr-3 flex-shrink-0" />
+                <h2 className="text-lg sm:text-xl font-bold text-red-700">Application Failed</h2>
               </div>
-              <Button variant="outline" size="sm" onClick={handleClose}>
+              <Button variant="outline" size="sm" onClick={handleClose} className="min-h-[44px] min-w-[44px]">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -242,17 +242,17 @@ export function SmartApplyModal({
               <div className="bg-yellow-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-yellow-900 mb-2">Alternative Options:</h4>
                 <div className="space-y-2">
-                  <Button 
+                  <Button
                     onClick={() => window.open(job.url, '_blank')}
-                    variant="outline" 
-                    className="w-full"
+                    variant="outline"
+                    className="w-full min-h-[44px]"
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Apply Manually on {job.company}'s Site
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => setStep('form')}
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                   >
                     Try Smart Apply Again
                   </Button>
@@ -266,22 +266,22 @@ export function SmartApplyModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Smart Apply to {job.title}</h2>
-              <div className="flex items-center text-gray-600 space-x-2">
-                <span>{job.company}</span>
-                <span>•</span>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <Card className="w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[90vh] overflow-auto rounded-none sm:rounded-lg">
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-start mb-4 sm:mb-6">
+            <div className="min-w-0 flex-1 pr-2">
+              <h2 className="text-lg sm:text-2xl font-bold mb-1 sm:mb-2 line-clamp-2">Smart Apply to {job.title}</h2>
+              <div className="flex flex-wrap items-center text-xs sm:text-sm text-gray-600 gap-x-2 gap-y-1">
+                <span className="truncate max-w-[150px] sm:max-w-none">{job.company}</span>
+                <span className="hidden sm:inline">•</span>
                 <div className="flex items-center">
                   <span className="mr-1">{job.sourceInfo.icon}</span>
-                  {job.sourceInfo.displayName}
+                  <span className="hidden sm:inline">{job.sourceInfo.displayName}</span>
                 </div>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleClose}>
+            <Button variant="outline" size="sm" onClick={handleClose} className="min-h-[44px] min-w-[44px]">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -298,30 +298,30 @@ export function SmartApplyModal({
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Name Fields */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  <User className="h-4 w-4 inline mr-1" />
+                <label className="block text-xs sm:text-sm font-medium mb-2">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
                   First Name *
                 </label>
                 <input
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-h-[44px]"
                   placeholder="John"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Last Name *</label>
+                <label className="block text-xs sm:text-sm font-medium mb-2">Last Name *</label>
                 <input
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-h-[44px]"
                   placeholder="Doe"
                   required
                 />
@@ -329,31 +329,31 @@ export function SmartApplyModal({
             </div>
 
             {/* Contact Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  <Mail className="h-4 w-4 inline mr-1" />
+                <label className="block text-xs sm:text-sm font-medium mb-2">
+                  <Mail className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
                   Email Address *
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-h-[44px]"
                   placeholder="john.doe@email.com"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  <Phone className="h-4 w-4 inline mr-1" />
+                <label className="block text-xs sm:text-sm font-medium mb-2">
+                  <Phone className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
                   Phone Number
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-h-[44px]"
                   placeholder="+1 (555) 123-4567"
                 />
               </div>
@@ -446,14 +446,14 @@ export function SmartApplyModal({
             )}
 
             {/* Submit Button */}
-            <div className="flex space-x-3">
-              <Button variant="outline" onClick={handleClose} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button variant="outline" onClick={handleClose} className="flex-1 min-h-[44px] order-2 sm:order-1">
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSubmit}
                 disabled={!isFormValid}
-                className="flex-1"
+                className="flex-1 min-h-[44px] order-1 sm:order-2"
               >
                 <Zap className="h-4 w-4 mr-2" />
                 Submit Application

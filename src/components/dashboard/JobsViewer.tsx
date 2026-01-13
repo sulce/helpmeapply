@@ -323,90 +323,94 @@ export function JobsViewer() {
           )}
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredJobs.map(job => (
-            <Card key={job.id} className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                    {job.matchScore && (
-                      <Badge variant={getMatchScoreBadge(job.matchScore)}>
-                        <Star className="h-3 w-3 mr-1" />
-                        {Math.round(job.matchScore * 100)}% Match
-                      </Badge>
-                    )}
-                    {job.appliedTo && (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Applied
-                      </Badge>
-                    )}
-                    {(() => {
-                      // Get source info for this job
-                      const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
-                      
-                      // Don't show badges for backup/mock jobs
-                      if (job.source === 'backup' || job.source === 'mock') {
-                        return null
-                      }
-                      
-                      return (
-                        <Badge variant="outline" className={sourceInfo.badge.color}>
-                          <span className="mr-1">{sourceInfo.icon}</span>
-                          {sourceInfo.badge.text}
+            <Card key={job.id} className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2 gap-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{job.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {job.matchScore && (
+                        <Badge variant={getMatchScoreBadge(job.matchScore)} className="whitespace-nowrap">
+                          <Star className="h-3 w-3 mr-1" />
+                          {Math.round(job.matchScore * 100)}% Match
                         </Badge>
-                      )
-                    })()}
+                      )}
+                      {job.appliedTo && (
+                        <Badge variant="default" className="bg-green-100 text-green-800 whitespace-nowrap">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Applied
+                        </Badge>
+                      )}
+                      {(() => {
+                        // Get source info for this job
+                        const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
+
+                        // Don't show badges for backup/mock jobs
+                        if (job.source === 'backup' || job.source === 'mock') {
+                          return null
+                        }
+
+                        return (
+                          <Badge variant="outline" className={`${sourceInfo.badge.color} whitespace-nowrap`}>
+                            <span className="mr-1">{sourceInfo.icon}</span>
+                            {sourceInfo.badge.text}
+                          </Badge>
+                        )
+                      })()}
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-600 mb-3">
                     <div className="flex items-center">
-                      <Building className="h-4 w-4 mr-1" />
-                      {job.company}
+                      <Building className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                      <span className="truncate max-w-[150px] sm:max-w-none">{job.company}</span>
                     </div>
                     {job.location && (
                       <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {job.location}
+                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                        <span className="truncate max-w-[120px] sm:max-w-none">{job.location}</span>
                       </div>
                     )}
                     {job.salaryRange && (
                       <div className="flex items-center">
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        {job.salaryRange}
+                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                        <span className="whitespace-nowrap">{job.salaryRange}</span>
                       </div>
                     )}
                     <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      {new Date(job.createdAt).toLocaleDateString()}
+                      <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{new Date(job.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
 
                   {job.description && (
-                    <p className="text-sm text-gray-700 mb-4 line-clamp-3">
+                    <p className="text-xs sm:text-sm text-gray-700 mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-3">
                       {job.description.substring(0, 200)}...
                     </p>
                   )}
 
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{job.employmentType}</Badge>
-                    <Badge variant="outline">{job.source}</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{job.employmentType}</Badge>
+                    <Badge variant="outline" className="text-xs">{job.source}</Badge>
                   </div>
                 </div>
 
-                <div className="flex flex-col space-y-2 ml-6">
+                <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto sm:ml-6">
                   {job.url && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => window.open(job.url, '_blank')}
+                      className="flex-1 sm:flex-none min-h-[44px] justify-center"
                     >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Job
+                      <ExternalLink className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline ml-1">View Job</span>
                     </Button>
                   )}
-                  
+
                   {!job.appliedTo && (
                     <Button
                       size="sm"
@@ -429,7 +433,7 @@ export function JobsViewer() {
                           setSelectedJob(job)
                         }
                       }}
-                      className="whitespace-nowrap"
+                      className="flex-1 sm:flex-none min-h-[44px] justify-center whitespace-nowrap"
                     >
                       {(() => {
                         const sourceInfo = job.sourceInfo || getJobSourceInfo(job.url || '')
@@ -471,16 +475,17 @@ export function JobsViewer() {
       {/* Pagination Controls */}
       {pagination.totalPages > 1 && (
         <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Showing page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalCount} total jobs)
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalCount} jobs)
             </div>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 justify-center">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => fetchJobs(pagination.currentPage - 1)}
                 disabled={pagination.currentPage <= 1}
+                className="min-h-[44px] flex-1 sm:flex-none"
               >
                 Previous
               </Button>
@@ -489,6 +494,7 @@ export function JobsViewer() {
                 size="sm"
                 onClick={() => fetchJobs(pagination.currentPage + 1)}
                 disabled={!pagination.hasMore}
+                className="min-h-[44px] flex-1 sm:flex-none"
               >
                 Next
               </Button>
