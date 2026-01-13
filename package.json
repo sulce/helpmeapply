@@ -1,88 +1,29 @@
 {
-  "name": "helpmeapply",
+  "name": "helpmeapply-worker",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "HelpMeApply Background Job Queue Worker",
+  "main": "src/scripts/queue-worker.ts",
   "scripts": {
-    "dev": "next dev",
-    "prebuild": "prisma generate",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "db:reset": "prisma migrate reset",
-    "db:deploy": "prisma migrate deploy",
     "worker:run": "tsx src/scripts/queue-worker.ts",
     "worker:dev": "tsx watch src/scripts/queue-worker.ts",
-    "queue:start": "tsx src/scripts/queue-worker.ts",
-    "queue:dev": "tsx watch src/scripts/queue-worker.ts",
-    "job-queue:start": "npx ts-node src/scripts/start-job-queue.ts",
-    "job-queue:dev": "npx ts-node --watch src/scripts/start-job-queue.ts",
-    "postbuild": "prisma generate"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "@auth/prisma-adapter": "^2.10.0",
-    "@aws-sdk/client-s3": "^3.844.0",
-    "@aws-sdk/s3-request-presigner": "^3.844.0",
-    "@hookform/resolvers": "^5.1.1",
-    "@prisma/client": "^6.11.1",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/multer": "^2.0.0",
-    "@types/node": "^24.0.13",
-    "@types/pdf-parse": "^1.1.5",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "autoprefixer": "^10.4.21",
-    "aws-sdk": "^2.1692.0",
-    "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.7.0",
-    "clsx": "^2.1.1",
-    "eslint": "^9.31.0",
-    "eslint-config-next": "^15.3.5",
-    "form-data": "^4.0.5",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.1",
-    "lucide-react": "^0.525.0",
-    "mammoth": "^1.10.0",
-    "multer": "^2.0.1",
-    "next": "15.3.8",
-    "next-auth": "^4.24.11",
-    "openai": "^4.67.3",
-    "pdf-parse": "^1.1.4",
-    "postcss": "^8.5.6",
-    "prisma": "^6.11.1",
-    "puppeteer": "^21.0.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-hook-form": "^7.60.0",
-    "stripe": "^20.1.2",
-    "tailwind-merge": "^3.3.1",
-    "tailwindcss": "^3.4.17",
-    "tsx": "^4.21.0",
-    "typescript": "^5.8.3",
-    "zod": "^3.23.8"
+    "start": "npm run worker:run",
+    "db:generate": "prisma generate",
+    "build": "echo 'Worker runs with tsx, no build needed'"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
-  "devDependencies": {},
-  "nixpacks": {
-    "phases": {
-      "install": {
-        "cmds": ["npm ci"]
-      },
-      "build": {
-        "cmds": ["npm run build"]
-      }
-    }
-  }
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "@types/node": "^24.0.13",
+    "openai": "^4.67.3",
+    "prisma": "^6.11.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3",
+    "zod": "^3.23.8"
+  },
+  "keywords": ["job-queue", "worker", "background-jobs"],
+  "author": "",
+  "license": "ISC"
 }
