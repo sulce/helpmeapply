@@ -312,73 +312,100 @@ export function ResumeEditor({ userId, onSave, initialData, isInitialDataSaved =
   ]
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
+    <div className="w-full mx-auto max-w-6xl">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-800 transition-colors"
           >
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-sm">Back to Dashboard</span>
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-xs sm:text-sm">Back</span>
           </button>
-          <h1 className="text-3xl font-bold">Resume Builder</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Resume Builder</h1>
         </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
           {/* Auto-save status indicator */}
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-xs sm:text-sm text-gray-600 order-first sm:order-none">
             {saveStatus.status === 'saving' && (
               <>
-                <Clock className="h-4 w-4 mr-1 animate-spin" />
-                Saving...
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
+                <span className="hidden sm:inline">Saving...</span>
               </>
             )}
             {saveStatus.status === 'saved' && (
               <>
-                <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
-                Saved {saveStatus.lastSaved ? `at ${saveStatus.lastSaved.toLocaleTimeString()}` : ''}
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600" />
+                <span className="hidden sm:inline">Saved {saveStatus.lastSaved ? `at ${saveStatus.lastSaved.toLocaleTimeString()}` : ''}</span>
+                <span className="sm:hidden">Saved</span>
               </>
             )}
             {saveStatus.status === 'error' && (
               <>
-                <AlertCircle className="h-4 w-4 mr-1 text-red-600" />
-                Save failed: {saveStatus.error}
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-red-600" />
+                <span className="hidden sm:inline">Save failed: {saveStatus.error}</span>
+                <span className="sm:hidden">Error</span>
               </>
             )}
           </div>
-          
-          <Button onClick={handleSave} disabled={isLoading}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Resume
-          </Button>
-          <Button onClick={generatePDF} disabled={isLoading} variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Generate PDF
-          </Button>
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={handleSave} disabled={isLoading} className="flex-1 sm:flex-none">
+              <Save className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Save Resume</span>
+              <span className="sm:hidden">Save</span>
+            </Button>
+            <Button onClick={generatePDF} disabled={isLoading} variant="outline" className="flex-1 sm:flex-none">
+              <FileText className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Generate PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-6">
-        {/* Section Navigation */}
-        <div className="w-64 space-y-2">
+      {/* Mobile Section Dropdown */}
+      <div className="mb-4 md:hidden">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Section
+        </label>
+        <select
+          value={activeSection}
+          onChange={(e) => setActiveSection(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
           {sections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
-                activeSection === section.id
-                  ? 'bg-blue-100 text-blue-700 border-blue-300'
-                  : 'hover:bg-gray-100'
-              }`}
-            >
-              <section.icon className="h-5 w-5 mr-3" />
+            <option key={section.id} value={section.id}>
               {section.label}
-            </button>
+            </option>
           ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* Desktop Section Navigation - Hidden on mobile */}
+        <div className="hidden md:block w-64 flex-shrink-0">
+          <div className="space-y-2 sticky top-4">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeSection === section.id
+                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <section.icon className="h-5 w-5 mr-3" />
+                {section.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1">
+        {/* Content Area - Full width on mobile */}
+        <div className="flex-1 min-w-0">
           <Card className="p-6">
             {activeSection === 'template' && (
               <TemplateSelectionSection

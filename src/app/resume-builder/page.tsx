@@ -272,7 +272,7 @@ export default function ResumeBuilderPage() {
 
   return (
     <Sidebar>
-      <div className="pt-4 pr-4 pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
+      <div className="p-4 md:pt-4 md:pr-4 md:pb-4 lg:pt-6 lg:pr-6 lg:pb-6">
         <ResumeEditor
           userId={session.user.id}
           onSave={handleSave}

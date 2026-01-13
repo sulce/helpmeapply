@@ -81,7 +81,7 @@ export function Sidebar({ children }: SidebarProps) {
   const isActive = (href: string) => pathname === href
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile menu button */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <Button
@@ -239,10 +239,10 @@ export function Sidebar({ children }: SidebarProps) {
 
       {/* Main content */}
       <div className={cn(
-        "flex-1 flex flex-col min-h-0 transition-all duration-300",
+        "flex-1 flex flex-col min-h-0 w-full transition-all duration-300",
         isCollapsed ? "md:ml-20" : "md:ml-64"
       )}>
-        <main className="flex-1 overflow-auto bg-gray-50">
+        <main className="flex-1 overflow-auto bg-gray-50 w-full">
           {children}
         </main>
       </div>
