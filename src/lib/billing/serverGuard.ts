@@ -18,6 +18,19 @@ export async function enforceSubscriptionAccess() {
   try {
     const subscriptionStatus = await getUserSubscriptionStatus(session.user.id)
 
+    // Auto-migrate legacy users to trial
+    if (!subscriptionStatus.subscriptionPlan && !subscriptionStatus.subscriptionStatus) {
+      console.log(`Auto-migrating legacy user ${session.user.id} to free trial`)
+      const { initializeUserTrial } = await import('@/lib/billing/usageTracking')
+      await initializeUserTrial(session.user.id)
+      // Re-fetch subscription status after migration
+      const updatedStatus = await getUserSubscriptionStatus(session.user.id)
+      return {
+        user: session.user,
+        subscription: updatedStatus
+      }
+    }
+
     if (!subscriptionStatus.hasAccess) {
       redirect('/billing?reason=expired')
     }

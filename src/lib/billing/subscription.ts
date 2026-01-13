@@ -117,7 +117,13 @@ export function hasActiveSubscription(user: {
     return now < user.trialEndsAt
   }
 
-  // No subscription data means no access (unless trial above)
+  // LEGACY USERS: If no subscription plan set, assume they should have access (grandfathered)
+  // This handles users created before subscription system was implemented
+  if (!user.subscriptionPlan && !user.subscriptionStatus) {
+    return true // Grant access to legacy users
+  }
+
+  // No subscription data means no access (unless trial above or legacy user)
   if (!user.subscriptionStatus) {
     return false
   }
