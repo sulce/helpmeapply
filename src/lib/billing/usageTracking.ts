@@ -277,7 +277,7 @@ export async function updateCurrentPeriodLimits(
 ): Promise<void> {
   const period = await getCurrentUsagePeriod(userId)
   const newLimits = calculateEffectiveLimits(newPriceId, addonPriceIds)
-  
+
   await prisma.usagePeriod.update({
     where: { id: period.id },
     data: {
@@ -291,6 +291,47 @@ export async function updateCurrentPeriodLimits(
       updatedAt: new Date()
     }
   })
-  
+
   console.log(`Updated usage limits for user ${userId} with new price ${newPriceId}`)
+}
+
+/**
+ * Initialize trial for legacy users (users created before subscription system)
+ * Gives them 7 days to try the platform
+ */
+export async function initializeUserTrial(userId: string, trialDays: number = 7): Promise<void> {
+  const now = new Date()
+  const trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000)
+
+  // Update user with trial information
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      subscriptionPlan: 'free_trial',
+      trialEndsAt: trialEndsAt,
+      updatedAt: now
+    }
+  })
+
+  // Create initial usage period
+  await prisma.usagePeriod.create({
+    data: {
+      userId,
+      periodStart: now,
+      periodEnd: trialEndsAt,
+      subscriptionId: null,
+      priceId: null,
+      planType: 'free_trial',
+      autoApplicationsUsed: 0,
+      mockInterviewsUsed: 0,
+      autoApplicationsLimit: 5, // Free trial limits
+      mockInterviewsLimit: 1,
+      hasInterviewAddon: false,
+      addonPriceIds: null,
+      isActive: true,
+      isTrial: true
+    }
+  })
+
+  console.log(`Initialized ${trialDays}-day trial for legacy user ${userId}, expires: ${trialEndsAt.toISOString()}`)
 }

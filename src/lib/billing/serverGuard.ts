@@ -18,11 +18,11 @@ export async function enforceSubscriptionAccess() {
   try {
     const subscriptionStatus = await getUserSubscriptionStatus(session.user.id)
 
-    // Auto-migrate legacy users to trial
+    // Auto-migrate legacy users to 7-day trial
     if (!subscriptionStatus.subscriptionPlan && !subscriptionStatus.subscriptionStatus) {
-      console.log(`Auto-migrating legacy user ${session.user.id} to free trial`)
+      console.log(`Auto-migrating legacy user ${session.user.id} to 7-day free trial`)
       const { initializeUserTrial } = await import('@/lib/billing/usageTracking')
-      await initializeUserTrial(session.user.id)
+      await initializeUserTrial(session.user.id, 7) // 7 days for legacy users
       // Re-fetch subscription status after migration
       const updatedStatus = await getUserSubscriptionStatus(session.user.id)
       return {
